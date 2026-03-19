@@ -191,8 +191,9 @@ The `SAS.studioweb.newSession` command (registered in `node/extension.ts`) close
 
 ```bash
 POST http://192.168.0.141/SASStudio/38/sasexec/sessions
-# No authentication required for dev instance (production requires auth cookies)
-# Response sets: Set-Cookie: JSESSIONID=<token>  ← capture this
+# Dev instance: no authorization cookie required — just POST with empty body
+# Production: must include auth token cookie from SAS Studio login flow in ALL requests
+# Response sets: Set-Cookie: JSESSIONID=<token>  ← capture this (required for /reset on dev)
 # Returns: { id, baseURL, version, sasSysUserId, userDirectory, ... }
 ```
 
@@ -225,7 +226,7 @@ The following documentation files describe the internal SAS Studio Web REST API 
 **Key API patterns:**
 
 - Base URL: `{host}/sasexec` or `{host}/SASStudio/{version}/sasexec`
-- Auth: `RemoteSession-Id` header; `JSESSIONID` cookie (from session creation response) required for the reset endpoint; production instances also require auth cookies for all requests
+- Auth: `RemoteSession-Id` header required for all requests. Cookie requirements differ: **production** requires an authorization token cookie (from the SAS Studio login flow) on **every** request including session creation; **dev instance** requires no authorization cookie — the `JSESSIONID` cookie (set in the session creation response) is only needed for the `/reset` endpoint.
 - File paths: Use `~~ds~~` prefix (e.g., `/workspace/~~ds~~/path/to/file`)
 - Libraries: `/libdata/{sessionId}/libraries` endpoint
 - Code execution: `POST /sessions/{id}/asyncSubmissions` → poll `/messages/longpoll`
