@@ -1,5 +1,6 @@
 // Copyright © 2024, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+import axios, { AxiosError } from "axios";
 import { l10n, window } from "vscode";
 
 import { RunResult } from "..";
@@ -8,8 +9,12 @@ import { ConnectionType } from "../../components/profile";
 import { profileConfig } from "../../commands/profile";
 import { Session } from "../session";
 import {
+  StudioWebCachedState,
+  clearActiveCredentials,
   getAxios,
+  getCachedState,
   getCredentials,
+  setCachedState,
   setCredentials,
   setEncodeDoubleSlashes,
   setServerEncoding,
@@ -52,6 +57,233 @@ function getLogLineType(
   return "normal";
 }
 
+// ---------------------------------------------------------------------------
+// Low-level helpers
+// ---------------------------------------------------------------------------
+
+/** Prompt user for an auth cookie. Returns undefined if cancelled, empty string if left blank. */
+async function promptForCookie(): Promise<string | undefined> {
+  return window.showInputBox({
+    title: l10n.t("SAS Studio Auth Cookie"),
+    placeHolder: l10n.t(
+      "Enter auth cookie (leave blank for dev/local instance)",
+    ),
+    ignoreFocusOut: true,
+    password: true,
+  });
+}
+
+/** Prompt user for a session ID. Returns undefined if cancelled. */
+async function promptForSessionId(): Promise<string | undefined> {
+  return window.showInputBox({
+    title: l10n.t("SAS Studio Session ID"),
+    placeHolder: l10n.t("Enter your SAS Studio remote session ID"),
+    ignoreFocusOut: true,
+  });
+}
+
+/** Returns true if the HTTP status indicates an auth failure. */
+function isAuthError(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
+/**
+ * Pings an existing session to check if it's still alive.
+ * Returns "alive", "dead", or "auth_error".
+ */
+async function pingSession(
+  endpoint: string,
+  sessionId: string,
+  cookieString?: string,
+): Promise<"alive" | "dead" | "auth_error"> {
+  try {
+    const headers: Record<string, string> = {
+      "RemoteSession-Id": sessionId,
+      Accept: "*/*",
+    };
+    if (cookieString) {
+      headers["Cookie"] = cookieString;
+    }
+    await axios.get(`${endpoint}/sasexec/sessions/${sessionId}/ping`, {
+      headers,
+      timeout: 15000,
+    });
+    return "alive";
+  } catch (err) {
+    if (err instanceof AxiosError && err.response) {
+      if (err.response.status === 404) {
+        return "dead";
+      }
+      if (isAuthError(err.response.status)) {
+        return "auth_error";
+      }
+    }
+    return "dead";
+  }
+}
+
+/**
+ * Creates a new session on the server.
+ * Returns the session ID on success, or throws on auth/network error.
+ */
+async function createSessionOnServer(
+  endpoint: string,
+  cookieString?: string,
+): Promise<string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (cookieString) {
+    headers["Cookie"] = cookieString;
+  }
+  const { data } = await axios.post(
+    `${endpoint}/sasexec/sessions`,
+    {},
+    { headers, timeout: 30000 },
+  );
+  if (!data?.id) {
+    throw new Error(l10n.t("Server returned no session ID."));
+  }
+  return data.id as string;
+}
+
+/**
+ * Activates a session: sets credentials, updates cached state,
+ * fetches server encoding, and updates the status bar.
+ */
+async function activateSession(
+  endpoint: string,
+  sessionId: string,
+  cookieString?: string,
+): Promise<void> {
+  setCredentials({ endpoint, sessionId, cookieString });
+  await setCachedState({ endpoint, sessionId, cookieString });
+
+  const activeProfile = profileConfig.getActiveProfileDetail()?.profile;
+  setEncodeDoubleSlashes(
+    activeProfile?.connectionType === ConnectionType.StudioWeb
+      ? (activeProfile.encodeDoubleSlashes ?? false)
+      : false,
+  );
+
+  await fetchServerEncoding(sessionId);
+  updateStatusBarItem(true);
+}
+
+// ---------------------------------------------------------------------------
+// Core session management
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensures an active StudioWeb session is available. Tries (in order):
+ *   1. Reuse active credentials if already set.
+ *   2. Ping cached session → reactivate if alive.
+ *   3. Create new session with cached cookie.
+ *   4. Prompt user for a new cookie and create a session.
+ */
+async function ensureActiveSession(endpoint: string): Promise<void> {
+  // 1. Already connected
+  if (getCredentials()) {
+    return;
+  }
+
+  const cached = await getCachedState();
+
+  // 2. Try cached session
+  if (cached?.sessionId && cached.endpoint === endpoint) {
+    const status = await pingSession(
+      endpoint,
+      cached.sessionId,
+      cached.cookieString,
+    );
+    if (status === "alive") {
+      await activateSession(endpoint, cached.sessionId, cached.cookieString);
+      return;
+    }
+    if (status === "auth_error") {
+      // Cookie expired — need a new one
+      const newCookie = await promptForCookie();
+      if (newCookie === undefined) {
+        throw new Error(l10n.t("SAS Studio auth cookie input was cancelled."));
+      }
+      // Try again with new cookie — session might still be alive
+      const retryStatus = await pingSession(
+        endpoint,
+        cached.sessionId,
+        newCookie || undefined,
+      );
+      if (retryStatus === "alive") {
+        await activateSession(
+          endpoint,
+          cached.sessionId,
+          newCookie || undefined,
+        );
+        return;
+      }
+      // Session dead, fall through to create with new cookie
+      return createAndActivate(endpoint, newCookie || undefined);
+    }
+    // status === "dead" — try to create a new session with cached cookie
+    try {
+      return await createAndActivate(
+        endpoint,
+        cached.cookieString,
+      );
+    } catch (err) {
+      if (
+        err instanceof AxiosError &&
+        err.response &&
+        isAuthError(err.response.status)
+      ) {
+        // Cookie expired — prompt and retry
+        return promptCookieAndCreate(endpoint);
+      }
+      throw err;
+    }
+  }
+
+  // 3. No cached session — try creating with cached cookie if available
+  if (cached?.cookieString && cached.endpoint === endpoint) {
+    try {
+      return await createAndActivate(endpoint, cached.cookieString);
+    } catch (err) {
+      if (
+        err instanceof AxiosError &&
+        err.response &&
+        isAuthError(err.response.status)
+      ) {
+        return promptCookieAndCreate(endpoint);
+      }
+      throw err;
+    }
+  }
+
+  // 4. No cached state at all — prompt for cookie
+  return promptCookieAndCreate(endpoint);
+}
+
+/** Prompt for cookie, create session, and activate. */
+async function promptCookieAndCreate(endpoint: string): Promise<void> {
+  const cookie = await promptForCookie();
+  if (cookie === undefined) {
+    throw new Error(l10n.t("SAS Studio auth cookie input was cancelled."));
+  }
+  return createAndActivate(endpoint, cookie || undefined);
+}
+
+/** Create a new session on the server and activate it. */
+async function createAndActivate(
+  endpoint: string,
+  cookieString?: string,
+): Promise<void> {
+  const sessionId = await createSessionOnServer(endpoint, cookieString);
+  await activateSession(endpoint, sessionId, cookieString);
+}
+
+// ---------------------------------------------------------------------------
+// Session class
+// ---------------------------------------------------------------------------
+
 export class StudioWebSession extends Session {
   private _config: Config;
   private _cancelled = false;
@@ -66,44 +298,7 @@ export class StudioWebSession extends Session {
   }
 
   protected async establishConnection(): Promise<void> {
-    // If credentials are already set, re-use the existing session.
-    if (getCredentials()) {
-      updateStatusBarItem(true);
-      return;
-    }
-
-    const sessionId = await window.showInputBox({
-      title: l10n.t("SAS Studio Session ID"),
-      placeHolder: l10n.t("Enter your SAS Studio remote session ID"),
-      ignoreFocusOut: true,
-    });
-
-    if (sessionId === undefined) {
-      throw new Error(l10n.t("SAS Studio session ID input was cancelled."));
-    }
-
-    const cookieString = await window.showInputBox({
-      title: l10n.t("SAS Studio Session Cookie"),
-      placeHolder: l10n.t("Enter session cookie (e.g. cookieName=value)"),
-      ignoreFocusOut: true,
-      password: true,
-    });
-
-    if (cookieString === undefined) {
-      throw new Error(
-        l10n.t("SAS Studio session cookie input was cancelled."),
-      );
-    }
-
-    setCredentials({
-      endpoint: this._config.endpoint,
-      sessionId,
-      cookieString,
-    });
-
-    await fetchServerEncoding(sessionId);
-
-    updateStatusBarItem(true);
+    await ensureActiveSession(this._config.endpoint);
   }
 
   protected async _run(code: string): Promise<RunResult> {
@@ -203,7 +398,8 @@ export class StudioWebSession extends Session {
   }
 
   protected async _close(): Promise<void> {
-    setCredentials(undefined);
+    // Clear active connection but preserve cached state for reconnect
+    clearActiveCredentials();
     updateStatusBarItem(false);
 
     if (this._rejectRun) {
@@ -277,76 +473,112 @@ export async function ensureCredentials(): Promise<boolean> {
     return false;
   }
 
-  const sessionId = await window.showInputBox({
-    title: l10n.t("SAS Studio Session ID"),
-    placeHolder: l10n.t("Enter your SAS Studio remote session ID"),
-    ignoreFocusOut: true,
-  });
-
-  if (sessionId === undefined) {
+  try {
+    await ensureActiveSession(endpoint);
+    return true;
+  } catch {
     return false;
   }
-
-  const cookieString = await window.showInputBox({
-    title: l10n.t("SAS Studio Session Cookie"),
-    placeHolder: l10n.t("Enter session cookie (e.g. cookieName=value)"),
-    ignoreFocusOut: true,
-    password: true,
-  });
-
-  if (cookieString === undefined) {
-    return false;
-  }
-
-  setCredentials({ endpoint, sessionId, cookieString });
-  setEncodeDoubleSlashes(
-    profile?.connectionType === ConnectionType.StudioWeb
-      ? (profile.encodeDoubleSlashes ?? false)
-      : false,
-  );
-  await fetchServerEncoding(sessionId);
-  return true;
 }
 
 /**
- * Clears the current session credentials and prompts the user for a new
- * session ID and cookie. The new credentials are stored but no HTTP
- * connection is established until the next call to `setup()`.
+ * Creates a new session on the server using the stored auth cookie.
+ * If no cookie is cached, prompts the user for one.
+ * Does NOT ask for a session ID — it is obtained from the server.
  */
 export async function promptNewSession(): Promise<void> {
-  // Capture the endpoint from the current credentials before clearing them.
-  const endpoint = getCredentials()?.endpoint ?? sessionInstance?.configEndpoint ?? "";
+  const cachedForEndpoint = await getCachedState();
+  const endpoint =
+    getCredentials()?.endpoint ??
+    cachedForEndpoint?.endpoint ??
+    sessionInstance?.configEndpoint ??
+    "";
 
-  setCredentials(undefined);
+  if (!endpoint) {
+    return;
+  }
 
-  const sessionId = await window.showInputBox({
-    title: l10n.t("SAS Studio Session ID"),
-    placeHolder: l10n.t("Enter your SAS Studio remote session ID"),
-    ignoreFocusOut: true,
-  });
+  // Clear active connection
+  clearActiveCredentials();
 
+  // Try to reuse cached cookie
+  const cookieString =
+    cachedForEndpoint?.endpoint === endpoint
+      ? cachedForEndpoint.cookieString
+      : undefined;
+
+  if (cookieString !== undefined) {
+    try {
+      await createAndActivate(endpoint, cookieString);
+      return;
+    } catch (err) {
+      if (
+        err instanceof AxiosError &&
+        err.response &&
+        isAuthError(err.response.status)
+      ) {
+        // Cookie expired — fall through to prompt
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // No cached cookie or it expired — prompt
+  await promptCookieAndCreate(endpoint);
+}
+
+/**
+ * Attaches to an existing session by prompting the user for both
+ * a session ID and an auth cookie. Validates the session with ping
+ * before activating. Provides backward compatibility with the
+ * original manual-entry flow.
+ */
+export async function promptAttachSession(): Promise<void> {
+  const cachedForEndpoint = await getCachedState();
+  const endpoint =
+    getCredentials()?.endpoint ??
+    cachedForEndpoint?.endpoint ??
+    sessionInstance?.configEndpoint ??
+    "";
+
+  if (!endpoint) {
+    return;
+  }
+
+  const sessionId = await promptForSessionId();
   if (sessionId === undefined) {
     return;
   }
 
-  const cookieString = await window.showInputBox({
-    title: l10n.t("SAS Studio Session Cookie"),
-    placeHolder: l10n.t("Enter session cookie (e.g. cookieName=value)"),
-    ignoreFocusOut: true,
-    password: true,
-  });
-
+  const cookieString = await promptForCookie();
   if (cookieString === undefined) {
     return;
   }
 
-  setCredentials({ endpoint, sessionId, cookieString });
-  const activeProfile = profileConfig.getActiveProfileDetail()?.profile;
-  setEncodeDoubleSlashes(
-    activeProfile?.connectionType === ConnectionType.StudioWeb
-      ? (activeProfile.encodeDoubleSlashes ?? false)
-      : false,
+  // Validate the session is alive
+  const status = await pingSession(
+    endpoint,
+    sessionId,
+    cookieString || undefined,
   );
+
+  if (status === "dead") {
+    window.showErrorMessage(
+      l10n.t("Session not found or no longer alive."),
+    );
+    return;
+  }
+  if (status === "auth_error") {
+    window.showErrorMessage(
+      l10n.t("Authentication failed. Check your auth cookie."),
+    );
+    return;
+  }
+
+  // Clear any existing connection and activate the attached session
+  clearActiveCredentials();
+  await activateSession(endpoint, sessionId, cookieString || undefined);
 }
 
 /**

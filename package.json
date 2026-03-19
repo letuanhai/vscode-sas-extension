@@ -686,6 +686,11 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.studioweb.attachSession",
+        "title": "%commands.SAS.studioweb.attachSession%",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.switchProfile",
         "title": "%commands.SAS.switchProfile%",
         "category": "SAS"

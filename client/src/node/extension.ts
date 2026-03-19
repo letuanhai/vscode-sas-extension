@@ -56,7 +56,7 @@ import { NotebookController } from "../components/notebook/Controller";
 import { NotebookSerializer } from "../components/notebook/Serializer";
 import { exportNotebook, saveOutput } from "../components/notebook/exporters";
 import { ConnectionType } from "../components/profile";
-import { promptNewSession } from "../connection/studioweb";
+import { promptAttachSession, promptNewSession } from "../connection/studioweb";
 import { SasTaskProvider } from "../components/tasks/SasTaskProvider";
 import { SAS_TASK_TYPE } from "../components/tasks/SasTasks";
 
@@ -164,6 +164,10 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand("SAS.studioweb.newSession", async () => {
       commands.executeCommand("SAS.close", true);
       await promptNewSession();
+    }),
+    commands.registerCommand("SAS.studioweb.attachSession", async () => {
+      commands.executeCommand("SAS.close", true);
+      await promptAttachSession();
     }),
     commands.registerCommand("SAS.switchProfile", switchProfile),
     commands.registerCommand("SAS.addProfile", addProfile),
