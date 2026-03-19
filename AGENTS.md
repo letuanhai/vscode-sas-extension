@@ -103,16 +103,16 @@ See `client/test/components/ContentNavigator/QuickFileBrowser.test.ts` for a com
 
 ### Decision guide for agents
 
-| Need to test…                        | Use                  |
-| ------------------------------------ | -------------------- |
-| Pure function / utility              | `test-harness`       |
-| Store actions (zustand)              | `test-harness`       |
-| HTTP API logic (with mocked axios)   | `test-harness`       |
-| Data transformation / parsing        | `test-harness`       |
-| VS Code command execution            | `test-client`        |
-| LSP features (completion, hover)     | `test-client`        |
-| Extension activation / registration  | `test-client`        |
-| Anything importing from `"vscode"`   | `test-client`        |
+| Need to test…                       | Use            |
+| ----------------------------------- | -------------- |
+| Pure function / utility             | `test-harness` |
+| Store actions (zustand)             | `test-harness` |
+| HTTP API logic (with mocked axios)  | `test-harness` |
+| Data transformation / parsing       | `test-harness` |
+| VS Code command execution           | `test-client`  |
+| LSP features (completion, hover)    | `test-client`  |
+| Extension activation / registration | `test-client`  |
+| Anything importing from `"vscode"`  | `test-client`  |
 
 ## Architecture
 
@@ -178,6 +178,40 @@ The `SAS.studioweb.newSession` command (registered in `node/extension.ts`) close
 | `SAS.serverEnabled`    | All types except SSH               |
 | `SAS.contentEnabled`   | REST (Viya) and StudioWeb          |
 
+## SAS Studio Web Testing Considerations
+
+**⚠️ Important:** The dev SAS Studio server at `192.168.0.141` has limited memory. When writing tests:
+
+- **Reuse sessions when possible** - Don't create a new session for every test if tests can share one
+- **Capture the JSESSIONID cookie on session creation** - The server sets `JSESSIONID` in the `Set-Cookie` response header. Store it (e.g. `axios` cookie jar or manual header) — it is required for the reset endpoint; without it, reset returns HTTP 404
+- **Clean up sessions** - Use `DELETE /sessions/{id}` in `after`/`afterEach` hooks to explicitly delete sessions and free up server resources
+- **Avoid heavy parallelism** - Creating many sessions concurrently under active load may trigger HTTP 503; reuse sessions rather than creating one per test
+
+**Session creation endpoint:**
+
+```bash
+POST http://192.168.0.141/SASStudio/38/sasexec/sessions
+# No authentication required for dev instance (production requires auth cookies)
+# Response sets: Set-Cookie: JSESSIONID=<token>  ← capture this
+# Returns: { id, baseURL, version, sasSysUserId, userDirectory, ... }
+```
+
+**Session status check:**
+
+```bash
+GET http://192.168.0.141/SASStudio/38/sasexec/sessions/{sessionId}/ping
+# Returns: { lastAccessedTime, running, queued, lastAccessedSpanInMilliseconds }
+# HTTP 404 = session expired/invalid
+```
+
+**Session cleanup/delete:**
+
+```bash
+DELETE http://192.168.0.141/SASStudio/38/sasexec/sessions/{sessionId}
+# Returns: HTTP 200 on success
+# Use this in after/afterEach hooks to clean up test sessions
+```
+
 ## SAS Studio Web API Reference
 
 The following documentation files describe the internal SAS Studio Web REST API used by the `studioweb` connection type:
@@ -191,7 +225,7 @@ The following documentation files describe the internal SAS Studio Web REST API 
 **Key API patterns:**
 
 - Base URL: `{host}/sasexec` or `{host}/SASStudio/{version}/sasexec`
-- Auth: `RemoteSession-Id` header + session cookie
+- Auth: `RemoteSession-Id` header; `JSESSIONID` cookie (from session creation response) required for the reset endpoint; production instances also require auth cookies for all requests
 - File paths: Use `~~ds~~` prefix (e.g., `/workspace/~~ds~~/path/to/file`)
 - Libraries: `/libdata/{sessionId}/libraries` endpoint
 - Code execution: `POST /sessions/{id}/asyncSubmissions` → poll `/messages/longpoll`
