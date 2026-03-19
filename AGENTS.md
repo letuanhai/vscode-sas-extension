@@ -183,7 +183,6 @@ The `SAS.studioweb.newSession` command (registered in `node/extension.ts`) close
 **⚠️ Important:** The dev SAS Studio server at `192.168.0.141` has limited memory. When writing tests:
 
 - **Reuse sessions when possible** - Don't create a new session for every test if tests can share one
-- **Capture the JSESSIONID cookie on session creation** - The server sets `JSESSIONID` in the `Set-Cookie` response header. Store it (e.g. `axios` cookie jar or manual header) — it is required for the reset endpoint; without it, reset returns HTTP 404
 - **Clean up sessions** - Use `DELETE /sessions/{id}` in `after`/`afterEach` hooks to explicitly delete sessions and free up server resources
 - **Avoid heavy parallelism** - Creating many sessions concurrently under active load may trigger HTTP 503; reuse sessions rather than creating one per test
 
@@ -193,7 +192,7 @@ The `SAS.studioweb.newSession` command (registered in `node/extension.ts`) close
 POST http://192.168.0.141/SASStudio/38/sasexec/sessions
 # Dev instance: no authorization cookie required — just POST with empty body
 # Production: must include auth token cookie from SAS Studio login flow in ALL requests
-# Response sets: Set-Cookie: JSESSIONID=<token>  ← capture this (required for /reset on dev)
+# Response sets: Set-Cookie: JSESSIONID=<token>
 # Returns: { id, baseURL, version, sasSysUserId, userDirectory, ... }
 ```
 
@@ -226,7 +225,7 @@ The following documentation files describe the internal SAS Studio Web REST API 
 **Key API patterns:**
 
 - Base URL: `{host}/sasexec` or `{host}/SASStudio/{version}/sasexec`
-- Auth: `RemoteSession-Id` header required for all requests. Cookie requirements differ: **production** requires an authorization token cookie (from the SAS Studio login flow) on **every** request including session creation; **dev instance** requires no authorization cookie — the `JSESSIONID` cookie (set in the session creation response) is only needed for the `/reset` endpoint.
+- Auth: `RemoteSession-Id` header required for all requests. Cookie requirements differ: **production** requires an authorization token cookie (from the SAS Studio login flow) on **every** request including session creation; **dev instance** requires no authorization cookie.
 - File paths: Use `~~ds~~` prefix (e.g., `/workspace/~~ds~~/path/to/file`)
 - Libraries: `/libdata/{sessionId}/libraries` endpoint
 - Code execution: `POST /sessions/{id}/asyncSubmissions` → poll `/messages/longpoll`
