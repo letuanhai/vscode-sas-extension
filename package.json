@@ -1581,7 +1581,7 @@
     "pretest": "npm run compile && tsc -p ./client",
     "test-client": "vscode-test",
     "test-client:label": "vscode-test --label",
-    "test-harness": "cross-env TS_NODE_PROJECT=./client/tsconfig.json mocha -r ./client/test/harness/setup.js -r ts-node/register ./client/test/harness/**/*.test.ts",
+    "test-harness": "node run-harness.cjs",
     "test-server": "cross-env TS_NODE_PROJECT=./server/tsconfig.json mocha -r ts-node/register ./server/test/**/*.test.ts",
     "test": "npm run test-server && npm run test-harness && npm run test-client",
     "pseudoLocalize": "npx @vscode/l10n-dev export -o ./l10n ./client/src && npx @vscode/l10n-dev generate-pseudo -o ./l10n/ ./l10n/bundle.l10n.json ./package.nls.json",

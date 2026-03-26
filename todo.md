@@ -6,7 +6,7 @@
 
 ## ✅ Task 6: Quick File Browser (QuickPick-based server file navigation) — branch: feat/task6-quick-file-browser
 
-- [ ] fix reveal file functions
+- [x] fix reveal file functions
 - [ ] add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
 - [ ] fix place holder text button name
 - [ ] change absolute path handling: show parent folder with filename in filter

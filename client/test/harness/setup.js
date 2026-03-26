@@ -200,26 +200,67 @@ const vscodeMock = {
   StatusBarAlignment,
 };
 
-// ---------- Hook module resolution ----------
-// Store the fake module so require.cache references work
-const FAKE_PATH = path.join(__dirname, "__vscode_shim__.js");
+// ---------- node/extension.ts shim ----------
+// The harness tests import state.ts which transitively imports node/extension.ts.
+// That module loads vscode-languageclient/node and many other VS Code APIs that
+// are unavailable outside the extension host. We stub the module entirely so
+// only the exported values needed by state.ts (extensionContext) are exposed.
+const nodeExtensionMock = {
+  extensionContext: undefined,
+  // Export other top-level symbols accessed by production code under test
+  profileConfig: {
+    getActiveProfileDetail: () => undefined,
+  },
+};
 
-// Pre-populate require.cache with our shim at a fake path
-require.cache[FAKE_PATH] = {
-  id: FAKE_PATH,
-  filename: FAKE_PATH,
+// ---------- Hook module resolution ----------
+// Store the fake modules so require.cache references work
+const FAKE_PATH = path.join(__dirname, "__vscode_shim__.js");
+const FAKE_NODE_EXT_PATH = path.join(__dirname, "__node_extension_shim__.js");
+
+const makeShimEntry = (fakePath, exports) => ({
+  id: fakePath,
+  filename: fakePath,
   loaded: true,
-  exports: vscodeMock,
+  exports,
   paths: [],
   parent: null,
   children: [],
-};
+});
 
-// Intercept resolution of "vscode" to point at our fake module
+// Pre-populate require.cache with our shims at fake paths
+require.cache[FAKE_PATH] = makeShimEntry(FAKE_PATH, vscodeMock);
+require.cache[FAKE_NODE_EXT_PATH] = makeShimEntry(FAKE_NODE_EXT_PATH, nodeExtensionMock);
+
+// Absolute path of the real node/extension.ts (resolved without extension).
+// We intercept any require() for this file and redirect it to our shim.
+const NODE_EXT_REAL_PATH = path.resolve(
+  __dirname,
+  "../../src/node/extension",
+);
+
+// Intercept resolution of "vscode" and node/extension.ts
 const originalResolveFilename = Module._resolveFilename.bind(Module);
 Module._resolveFilename = function (request, parentModule, isMain, options) {
   if (request === "vscode") {
     return FAKE_PATH;
   }
-  return originalResolveFilename(request, parentModule, isMain, options);
+  // Intercept node/extension.ts however it's required (relative or absolute).
+  // normalise by resolving from the requesting module's directory.
+  try {
+    const resolved = originalResolveFilename(request, parentModule, isMain, options);
+    // Match the real node/extension.ts file (with or without .ts extension)
+    if (
+      resolved === NODE_EXT_REAL_PATH + ".ts" ||
+      resolved === NODE_EXT_REAL_PATH + ".js" ||
+      resolved === NODE_EXT_REAL_PATH
+    ) {
+      return FAKE_NODE_EXT_PATH;
+    }
+    return resolved;
+  } catch (e) {
+    // If original resolution fails (e.g. missing module), fall through —
+    // the error will surface naturally when the module is actually required.
+    throw e;
+  }
 };
