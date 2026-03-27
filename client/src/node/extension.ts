@@ -230,6 +230,12 @@ export function activate(context: ExtensionContext) {
 
   return {
     getRestAPIs,
+    __test__: {
+      triggerProfileUpdate: () => {
+        triggerProfileUpdate();
+        updateViewSettings();
+      },
+    },
   };
 }
 

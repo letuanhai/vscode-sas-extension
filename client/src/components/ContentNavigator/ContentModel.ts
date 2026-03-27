@@ -16,11 +16,11 @@ export class ContentModel {
   }
 
   public connected(): boolean {
-    return this.contentAdapter.connected();
+    return this.contentAdapter?.connected() ?? false;
   }
 
   public async connect(baseURL: string): Promise<void> {
-    await this.contentAdapter.connect(baseURL);
+    await this.contentAdapter?.connect(baseURL);
   }
 
   public getAdapter() {

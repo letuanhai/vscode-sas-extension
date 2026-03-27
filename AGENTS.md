@@ -95,24 +95,59 @@ npm run pretest && xvfb-run npm run test-client
 npx tsc -p ./client/tsconfig.json --noEmit
 ```
 
-**Headless environments:** VS Code requires a display server. Use `xvfb-run` on Linux headless machines (install with `sudo apt-get install -y xvfb`). GPU errors in the output are harmless.
+**Headless environments:** VS Code requires a display server. **Always use `xvfb-run`** to run `vscode-test` on Linux headless machines (install with `sudo apt-get install -y xvfb`). GPU errors in the output are harmless. Example:
+
+```bash
+xvfb-run npx vscode-test                   # all labels
+xvfb-run npx vscode-test --label integration
+xvfb-run npx vscode-test --label studioweb-live-ui
+```
 
 #### Reference example
 
 See `client/test/components/ContentNavigator/QuickFileBrowser.test.ts` for a complete example showing: stub adapter creation, QuickPick instance capture via `window.createQuickPick` spy, async item loading, `setContext` verification, and proper cleanup.
 
+### 3. StudioWeb Live UI Tests (`studioweb-live-ui`) — WHEN YOU NEED LIVE SERVER + VSCODE UI
+
+**When to use:** Testing VS Code UI components (tree views, QuickPick, commands, sidebar panels) against the real dev SAS Studio server.
+
+- Files go in `client/test/live-ui/`
+- Runs via `@vscode/test-cli` with the `studioweb-live-ui` label
+- Requires `SAS_UI_LIVE=1` env var (tests skip otherwise)
+- Optionally set `SAS_UI_LIVE_ENDPOINT` (defaults to `http://192.168.0.141/SASStudio/38`)
+- Uses shared helpers in `client/test/live-ui/helpers.ts` for profile bootstrap and cleanup
+- **One session per suite** — the dev server has limited memory
+
+```bash
+# Compile first, then run live UI tests
+npm run pretest
+SAS_UI_LIVE=1 xvfb-run npx vscode-test --label studioweb-live-ui
+```
+
+**What to test here:** Tree view visibility, QuickPick behavior with live data, command registration, `setContext` wiring, sidebar panel focus/reveal.
+
+**Key helpers in `helpers.ts`:**
+- `describeIfLive(title, fn)` — conditional `describe` gated on `SAS_UI_LIVE=1`
+- `bootstrapStudioWebProfile()` — writes a StudioWeb profile to VS Code settings
+- `cleanupProfile()` — closes session and resets settings
+- `recordSetContext()` — intercepts `setContext` calls for assertion
+- `waitFor(predicate, timeout)` — polling helper for async UI
+
 ### Decision guide for agents
 
-| Need to test…                       | Use            |
-| ----------------------------------- | -------------- |
-| Pure function / utility             | `test-harness` |
-| Store actions (zustand)             | `test-harness` |
-| HTTP API logic (with mocked axios)  | `test-harness` |
-| Data transformation / parsing       | `test-harness` |
-| VS Code command execution           | `test-client`  |
-| LSP features (completion, hover)    | `test-client`  |
-| Extension activation / registration | `test-client`  |
-| Anything importing from `"vscode"`  | `test-client`  |
+| Need to test…                       | Use                |
+| ----------------------------------- | ------------------ |
+| Pure function / utility             | `test-harness`     |
+| Store actions (zustand)             | `test-harness`     |
+| HTTP API logic (with mocked axios)  | `test-harness`     |
+| Data transformation / parsing       | `test-harness`     |
+| VS Code command execution           | `test-client`      |
+| LSP features (completion, hover)    | `test-client`      |
+| Extension activation / registration | `test-client`      |
+| Anything importing from `"vscode"`  | `test-client`      |
+| Tree views with live server data    | `studioweb-live-ui`|
+| QuickPick with live server data     | `studioweb-live-ui`|
+| setContext wiring with live profile | `studioweb-live-ui`|
 
 ## Architecture
 

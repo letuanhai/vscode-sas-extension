@@ -11,4 +11,14 @@ export default defineConfig([
       ui: "bdd",
     },
   },
+  {
+    label: "studioweb-live-ui",
+    files: "client/out/test/live-ui/**/*.live.test.js",
+    extensionDevelopmentPath: ".",
+    launchArgs: ["--disable-extensions", "--locale", "en-US"],
+    mocha: {
+      timeout: 120000,
+      ui: "bdd",
+    },
+  },
 ]);
