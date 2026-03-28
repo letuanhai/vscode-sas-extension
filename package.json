@@ -891,6 +891,16 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.server.quickBrowseTabItem",
+        "title": "Quick Browser: Complete Item Name",
+        "category": "SAS"
+      },
+      {
+        "command": "SAS.server.quickBrowseCopyPath",
+        "title": "Quick Browser: Copy Item Path",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.refreshLibraries",
         "title": "%commands.SAS.refresh%",
         "category": "SAS",
@@ -955,6 +965,16 @@
         "key": "alt+enter",
         "command": "SAS.server.quickBrowseReveal",
         "when": "SAS.quickBrowseOpen"
+      },
+      {
+        "key": "tab",
+        "command": "SAS.server.quickBrowseTabItem",
+        "when": "SAS.quickBrowseOpen && inQuickOpen"
+      },
+      {
+        "key": "alt+c",
+        "command": "SAS.server.quickBrowseCopyPath",
+        "when": "SAS.quickBrowseOpen && inQuickOpen"
       },
       {
         "when": "editorFocus && (editorLangId == sas || (editorLangId == python && resourceScheme =~ /^sas(Content|Server).*/)) && !SAS.hideRunMenuItem",
@@ -1229,6 +1249,14 @@
       "commandPalette": [
         {
           "command": "SAS.server.quickBrowseReveal",
+          "when": "false"
+        },
+        {
+          "command": "SAS.server.quickBrowseTabItem",
+          "when": "false"
+        },
+        {
+          "command": "SAS.server.quickBrowseCopyPath",
           "when": "false"
         },
         {

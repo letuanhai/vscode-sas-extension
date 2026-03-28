@@ -12,6 +12,13 @@ export function getActiveItem(): ContentItem | undefined {
   return _activeItem;
 }
 
+// Module-level active QuickPick — lets keybinding commands (`SAS.server.quickBrowseTabItem`)
+// write to the QuickPick's input value while it is open.
+let _activeQp: BrowserQuickPick | undefined;
+export function getActiveQuickPick(): BrowserQuickPick | undefined {
+  return _activeQp;
+}
+
 // Button shown on each file/folder item — clicking it reveals the item in the
 // SAS sidebar file tree without closing the QuickPick.
 const REVEAL_BUTTON: QuickInputButton = {
@@ -165,11 +172,12 @@ export default class QuickFileBrowser {
     // our BrowserQuickPick type which uses a string-literal `kind` discriminant.
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const qp = window.createQuickPick() as unknown as BrowserQuickPick;
+    _activeQp = qp;
     qp.matchOnDescription = true;
     qp.matchOnDetail = true;
     qp.ignoreFocusOut = true;
     qp.placeholder =
-      "Type to filter. / to jump to path. ↵ open  Alt+Enter reveal.";
+      "Type to filter. / to jump to path. ↵ open  Tab complete  Alt+Enter reveal  Alt+C copy path.";
 
     // Navigation stack: last element is the current folder; empty = root
     const stack: ContentItem[] = [];
@@ -271,6 +279,7 @@ export default class QuickFileBrowser {
     });
 
     qp.onDidHide(() => {
+      _activeQp = undefined;
       _activeItem = undefined;
       void commands.executeCommand("setContext", "SAS.quickBrowseOpen", false);
       cache.clear();
@@ -316,7 +325,7 @@ export default class QuickFileBrowser {
         ? "SAS Server"
         : currentPath;
     qp.placeholder =
-      "Type to filter. / to jump to path. ↵ open  Alt+Enter reveal.";
+      "Type to filter. / to jump to path. ↵ open  Tab complete  Alt+Enter reveal  Alt+C copy path.";
 
     const sorted = sortContentItems(children);
 

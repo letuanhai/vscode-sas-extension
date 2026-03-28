@@ -1,6 +1,13 @@
 // Copyright © 2024, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { QuickPick, QuickPickItem, Uri, commands, window } from "vscode";
+import {
+  QuickPick,
+  QuickPickItem,
+  Uri,
+  commands,
+  env,
+  window,
+} from "vscode";
 
 import { assert } from "chai";
 import * as sinon from "sinon";
@@ -8,6 +15,7 @@ import * as sinon from "sinon";
 import { ContentModel } from "../../../src/components/ContentNavigator/ContentModel";
 import QuickFileBrowser, {
   getActiveItem,
+  getActiveQuickPick,
   isFolder,
   sortContentItems,
   syntheticFolder,
@@ -606,5 +614,153 @@ describe("QuickFileBrowser (integration)", function () {
 
     activeQuickPick!.hide();
     await showPromise;
+  });
+
+  // -----------------------------------------------------------------------
+  // key binding commands
+  // -----------------------------------------------------------------------
+  describe("key binding commands", function () {
+
+    // -------------------------------------------------------------------
+    // 19. getActiveQuickPick returns QuickPick while browser is open
+    // -------------------------------------------------------------------
+    it("getActiveQuickPick returns QuickPick while browser is open", async () => {
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, [makeFile("readme.txt", "/readme.txt")]],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show(undefined);
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(
+        getActiveQuickPick(),
+        "getActiveQuickPick() should return a QuickPick while the browser is open",
+      );
+
+      activeQuickPick!.hide();
+      // Allow the onDidHide handler to run (clears _activeQp)
+      await sleep(100);
+
+      assert.isUndefined(
+        getActiveQuickPick(),
+        "getActiveQuickPick() should return undefined after the QuickPick is hidden",
+      );
+
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // 20. quickBrowseTabItem logic: sets qp.value to active item name
+    // -------------------------------------------------------------------
+    it("quickBrowseTabItem logic sets qp.value to active item name", async () => {
+      const fileItem = makeFile("hello.sas", "/hello.sas");
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, [fileItem]],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show(undefined);
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      // The real VS Code QuickPick fires onDidChangeActive automatically when
+      // items are loaded and the first item is highlighted. We explicitly set
+      // activeItems to ensure _activeItem is populated.
+      const qp = activeQuickPick! as QuickPick<QuickPickItem> & {
+        activeItems: readonly QuickPickItem[];
+      };
+      // Find the file item
+      const targetItem = activeQuickPick!.items.find(
+        (i) => i.label === "hello.sas",
+      );
+      assert.isDefined(targetItem, "file item should be present in QuickPick");
+
+      // Set activeItems to trigger onDidChangeActive, which populates _activeItem
+      qp.activeItems = [targetItem!];
+      // Allow event to propagate
+      await sleep(50);
+
+      // Simulate what the SAS.server.quickBrowseTabItem command does:
+      // read getActiveItem() and getActiveQuickPick() then set qp.value
+      const item = getActiveItem();
+      const activeBrowserQp = getActiveQuickPick();
+      assert.isDefined(item, "getActiveItem() should return the highlighted item");
+      assert.isDefined(activeBrowserQp, "getActiveQuickPick() should return the open QP");
+      if (item && activeBrowserQp) {
+        activeBrowserQp.value = item.name;
+      }
+
+      assert.equal(
+        activeQuickPick!.value,
+        "hello.sas",
+        "qp.value should be set to the highlighted item's name",
+      );
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // 21. quickBrowseCopyPath logic: writes item uri to clipboard
+    // -------------------------------------------------------------------
+    it("quickBrowseCopyPath logic writes item uri to clipboard", async () => {
+      const fileItem = makeFile("data.csv", "/srv/data.csv");
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, [fileItem]],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show(undefined);
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      // Find the file item and set it as the active item
+      const targetItem = activeQuickPick!.items.find(
+        (i) => i.label === "data.csv",
+      );
+      assert.isDefined(targetItem, "file item should be present in QuickPick");
+
+      const qp = activeQuickPick! as QuickPick<QuickPickItem> & {
+        activeItems: readonly QuickPickItem[];
+      };
+      qp.activeItems = [targetItem!];
+      await sleep(50);
+
+      // Simulate what the SAS.server.quickBrowseCopyPath command does:
+      // read getActiveItem() and write item.uri to clipboard.
+      // env.clipboard.writeText is non-configurable in VS Code and cannot be
+      // stubbed, so we verify correctness by reading back from the clipboard.
+      const item = getActiveItem();
+      assert.isDefined(item, "getActiveItem() should return the highlighted item");
+      assert.equal(
+        item?.uri,
+        "/srv/data.csv",
+        "getActiveItem() should return the item with the correct uri",
+      );
+      if (item) {
+        await env.clipboard.writeText(item.uri);
+      }
+
+      const clipboardText = await env.clipboard.readText();
+      assert.equal(
+        clipboardText,
+        "/srv/data.csv",
+        "clipboard should contain the item's uri after quickBrowseCopyPath logic runs",
+      );
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
   });
 });

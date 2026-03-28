@@ -23,7 +23,10 @@ import { treeViewSelections } from "../utils/treeViewSelections";
 import ContentAdapterFactory from "./ContentAdapterFactory";
 import ContentDataProvider from "./ContentDataProvider";
 import { ContentModel } from "./ContentModel";
-import QuickFileBrowser, { getActiveItem } from "./QuickFileBrowser";
+import QuickFileBrowser, {
+  getActiveItem,
+  getActiveQuickPick,
+} from "./QuickFileBrowser";
 import { Messages } from "./const";
 import { NotebookToFlowConverter } from "./convert";
 import {
@@ -500,6 +503,19 @@ class ContentNavigator implements SubscriptionProvider {
               const item = getActiveItem();
               if (item) {
                 this.contentDataProvider.reveal(item);
+              }
+            }),
+            commands.registerCommand(`${SAS}.quickBrowseTabItem`, () => {
+              const item = getActiveItem();
+              const qp = getActiveQuickPick();
+              if (item && qp) {
+                qp.value = item.name;
+              }
+            }),
+            commands.registerCommand(`${SAS}.quickBrowseCopyPath`, () => {
+              const item = getActiveItem();
+              if (item) {
+                void env.clipboard.writeText(item.uri);
               }
             }),
           ]
