@@ -1,33 +1,23 @@
-- [x] show output dataset from submission
-- [x] show error messages noti when http error code
-- [ ] add actions (to map keybinding) to focus sas sidebar file content/libraries section
-- [ ] add actions/buttons to create new file/folder in the file content tree
-- [-] fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
-
-## ✅ Task 6: Quick File Browser (QuickPick-based server file navigation) — branch: feat/task6-quick-file-browser
-
-- [x] fix reveal file functions
-- [ ] add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
-- [ ] fix place holder text button name
-- [ ] change absolute path handling: show parent folder with filename in filter
-- [ ] action to start browsing at current opened editor file path
-- [ ] add history/bookmarks for quick file browser
-- [ ] allow configuring root browsing path
-- [ ] change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
-
-A keyboard-friendly file browser using `window.createQuickPick()` that composes the
-existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides
-fuzzy filtering, absolute path jumping, and fast drill-down navigation.
-
----
-
-## Completed tasks (reference)
-
-- ✅ Task 1: File contents pane bugs (1a–1g)
-- ✅ Task 2: Drag-and-drop of untitled file uploads entire local root filesystem
-- ✅ Task 3: Drag-and-drop confirmation message
-- ✅ Task 4: Support opening SAS dataset (.sas7bdat) file in data view
-- Task 5: Support read/write with server encoding (not UTF-8)
-    - [ ] ready raw bytes
-    - [ ] write raw bytes
-- Task 6: Quick File Browser — `SAS.server.quickBrowse` command; `Shift+Enter` reveals highlighted item in SAS sidebar file tree; `$(list-tree)` per-item button does the same inline
+- [x] 1. File contents pane bugs (1a–1g)
+- [x] 2. Drag-and-drop of untitled file uploads entire local root filesystem
+- [x] 3. Drag-and-drop confirmation message
+- [x] 4. Support opening SAS dataset (.sas7bdat) file in data view
+- [ ] 5. Support read/write with server encoding (not UTF-8)
+    - [ ] 5.1. ready raw bytes
+    - [ ] 5.2. write raw bytes
+- [ ] 6. Quick File Browser — `SAS.server.quickBrowse` command; `Shift+Enter` reveals highlighted item in SAS sidebar file tree; `$(list-tree)` per-item button does the same inline
+A keyboard-friendly file browser using `window.createQuickPick()` that composes the existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides fuzzy filtering, absolute path jumping, and fast drill-down navigation.
+    - [x] 6.1 fix reveal file functions
+    - [ ] 6.2 add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
+    - [ ] 6.3 fix place holder text button name
+    - [ ] 6.4 change absolute path handling: show parent folder with filename in filter
+    - [ ] 6.5 action to start browsing at current opened editor file path
+    - [ ] 6.6 add history/bookmarks for quick file browser
+    - [ ] 6.7 allow configuring root browsing path
+    - [ ] 6.8 change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
+- [ ] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section
+- [ ] 8. add actions/buttons to create new file/folder in the file content tree
+- [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
+- [x] 10. show output dataset from submission
+    - [ ] 10.1. show links/buttons that can be used to open the output tables directly
+- [x] 11. show error messages noti when http error code
