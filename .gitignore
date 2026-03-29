@@ -11,3 +11,4 @@ l10n/bundle.l10n.json
 
 .claude
 .playwright-cli
+*.swp

@@ -9,12 +9,13 @@
 A keyboard-friendly file browser using `window.createQuickPick()` that composes the existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides fuzzy filtering, absolute path jumping, and fast drill-down navigation.
     - [x] 6.1 fix reveal file functions
     - [x] 6.2 add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
-    - [ ] 6.3 fix place holder text button name
-    - [ ] 6.4 change absolute path handling: show parent folder with filename in filter
-    - [ ] 6.5 action to start browsing at current opened editor file path
-    - [ ] 6.6 add history/bookmarks for quick file browser
-    - [ ] 6.7 allow configuring root browsing path
-    - [ ] 6.8 change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
+    - [ ] 6.3 fix placeholder text: only keep type to filter and enter absolute path
+    - [ ] 6.4 close quick browser after reveal
+    - [ ] 6.6 change absolute path handling: show parent folder with filename in filter
+    - [ ] 6.8 action to start browsing at current opened editor file path
+    - [ ] 6.10 add history/bookmarks for quick file browser
+    - [ ] 6.12 allow configuring root browsing path
+    - [ ] 6.14 change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
 - [ ] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section
 - [ ] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
