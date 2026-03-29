@@ -347,6 +347,29 @@ describe("QuickFileBrowser (integration)", function () {
   });
 
   // -----------------------------------------------------------------------
+  // 6b. Placeholder text contains only filter hint and absolute path hint
+  // -----------------------------------------------------------------------
+  it("sets placeholder to 'Type to filter  ·  / enter absolute path'", async () => {
+    const adapter = createStubAdapter(
+      new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+    );
+    const model = new ContentModel(adapter);
+    const browser = new QuickFileBrowser(model);
+
+    const showPromise = browser.show();
+    await sleep(200);
+    await waitForNotBusy(activeQuickPick!);
+
+    assert.equal(
+      activeQuickPick!.placeholder,
+      "Type to filter  ·  / enter absolute path",
+    );
+
+    activeQuickPick!.hide();
+    await showPromise;
+  });
+
+  // -----------------------------------------------------------------------
   // 7. SAS.quickBrowseOpen context is set to true when opened
   // -----------------------------------------------------------------------
   it("sets SAS.quickBrowseOpen context to true on show", async () => {

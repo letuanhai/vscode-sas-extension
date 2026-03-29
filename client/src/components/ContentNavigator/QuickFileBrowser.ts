@@ -176,8 +176,7 @@ export default class QuickFileBrowser {
     qp.matchOnDescription = true;
     qp.matchOnDetail = true;
     qp.ignoreFocusOut = true;
-    qp.placeholder =
-      "Type to filter. / to jump to path. ↵ open  Tab complete  Alt+Enter reveal  Alt+C copy path.";
+    qp.placeholder = "Type to filter  ·  / enter absolute path";
 
     // Navigation stack: last element is the current folder; empty = root
     const stack: ContentItem[] = [];
@@ -324,8 +323,7 @@ export default class QuickFileBrowser {
       currentPath === "/" || currentPath === "root"
         ? "SAS Server"
         : currentPath;
-    qp.placeholder =
-      "Type to filter. / to jump to path. ↵ open  Tab complete  Alt+Enter reveal  Alt+C copy path.";
+    qp.placeholder = "Type to filter  ·  / enter absolute path";
 
     const sorted = sortContentItems(children);
 

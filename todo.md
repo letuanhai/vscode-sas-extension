@@ -9,7 +9,7 @@
 A keyboard-friendly file browser using `window.createQuickPick()` that composes the existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides fuzzy filtering, absolute path jumping, and fast drill-down navigation.
     - [x] 6.1 fix reveal file functions
     - [x] 6.2 add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
-    - [ ] 6.3 fix placeholder text: only keep type to filter and enter absolute path
+    - [x] 6.3 fix placeholder text: only keep type to filter and enter absolute path
     - [ ] 6.4 close quick browser after reveal
     - [ ] 6.6 change absolute path handling: show parent folder with filename in filter
     - [ ] 6.8 action to start browsing at current opened editor file path
