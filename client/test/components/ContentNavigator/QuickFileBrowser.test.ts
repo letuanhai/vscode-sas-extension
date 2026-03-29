@@ -23,7 +23,6 @@ import QuickFileBrowser, {
 import {
   ContentAdapter,
   ContentItem,
-  Link,
   RootFolderMap,
 } from "../../../src/components/ContentNavigator/types";
 
@@ -540,11 +539,7 @@ describe("QuickFileBrowser (integration)", function () {
     );
     assert.isDefined(qpItem, "Should find the file item");
 
-    // Access the internal onDidTriggerItemButton — we simulate by
-    // checking that our onReveal was wired up correctly
-    // The actual button trigger requires internal QuickPick API
-    // so we verify the callback was provided
-    assert.isDefined(browser, "Browser should exist with onReveal callback");
+    assert.isUndefined(revealedItem, "onReveal should not fire before button is triggered");
 
     activeQuickPick!.hide();
     await showPromise;

@@ -503,6 +503,7 @@ class ContentNavigator implements SubscriptionProvider {
               const item = getActiveItem();
               if (item) {
                 this.contentDataProvider.reveal(item);
+                getActiveQuickPick()?.hide();
               }
             }),
             commands.registerCommand(`${SAS}.quickBrowseTabItem`, () => {
@@ -533,7 +534,7 @@ class ContentNavigator implements SubscriptionProvider {
             if (endpoint) {
               await this.contentDataProvider.connect(endpoint);
             } else {
-              await this.contentDataProvider.refresh();
+              this.contentDataProvider.refresh();
             }
           }
         },

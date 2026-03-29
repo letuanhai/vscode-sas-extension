@@ -274,6 +274,7 @@ export default class QuickFileBrowser {
       const it = e.item;
       if ((it.kind === "folder" || it.kind === "file") && this.onReveal) {
         this.onReveal(it.item);
+        qp.hide();
       }
     });
 

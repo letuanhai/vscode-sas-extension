@@ -964,7 +964,7 @@
       {
         "key": "alt+enter",
         "command": "SAS.server.quickBrowseReveal",
-        "when": "SAS.quickBrowseOpen"
+        "when": "SAS.quickBrowseOpen && inQuickOpen"
       },
       {
         "key": "tab",
