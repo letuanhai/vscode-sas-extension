@@ -111,7 +111,9 @@ interface GotoItem {
   kind: "goto";
   label: string;
   description: string;
+  alwaysShow: true;
   path: string;
+  filterText: string;
 }
 
 type BrowserQuickPickItem = ParentItem | FolderItem | FileItem | GotoItem;
@@ -191,6 +193,9 @@ export default class QuickFileBrowser {
     // Per-session cache keyed by folder URI (or "root" for the root listing)
     const cache = new Map<string, ContentItem[]>();
 
+    // Filter text to pre-fill after the next navigation (set by goto acceptance)
+    let nextFilter = "";
+
     // Monotonic version counter used to discard stale async responses
     const version = { current: 0 };
 
@@ -200,7 +205,9 @@ export default class QuickFileBrowser {
     const reload = (): void => {
       version.current += 1;
       const v = version.current;
-      void this.loadFolder(currentFolder(), qp, stack, cache, version, v).catch(
+      const filter = nextFilter;
+      nextFilter = "";
+      void this.loadFolder(currentFolder(), qp, stack, cache, version, v, filter).catch(
         (err: unknown) => {
           const msg = err instanceof Error ? err.message : String(err);
           void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
@@ -221,6 +228,7 @@ export default class QuickFileBrowser {
         stack.push(selected.item);
         reload();
       } else if (selected.kind === "goto") {
+        nextFilter = selected.filterText;
         stack.push(syntheticFolder(selected.path));
         reload();
       } else if (selected.kind === "file") {
@@ -244,11 +252,16 @@ export default class QuickFileBrowser {
 
     qp.onDidChangeValue((value: string) => {
       if (value.startsWith("/")) {
+        const lastSlash = value.lastIndexOf("/");
+        const dir = value.slice(0, lastSlash + 1) || "/";
+        const base = value.slice(lastSlash + 1);
         const gotoItem: GotoItem = {
           kind: "goto",
-          label: `$(arrow-right) Go to ${value}`,
-          description: "Navigate to path",
-          path: value,
+          label: `$(arrow-right) Go to ${dir}`,
+          description: base ? `· filter: ${base}` : "Navigate to path",
+          alwaysShow: true,
+          path: dir,
+          filterText: base,
         };
         // Replace any existing goto item at the top; keep all non-goto items
         const existing = qp.items.filter((i) => i.kind !== "goto");
@@ -298,6 +311,7 @@ export default class QuickFileBrowser {
     cache: Map<string, ContentItem[]>,
     version: { current: number },
     expectedVersion: number,
+    initialFilter = "",
   ): Promise<void> {
     qp.busy = true;
 
@@ -356,8 +370,9 @@ export default class QuickFileBrowser {
       }));
 
     qp.items = [...parentItems, ...folderItems, ...fileItems];
-    // Clear the text filter so the new directory's items show unfiltered
-    qp.value = "";
+    // Set the text filter: pre-fill with initialFilter (e.g. filename from a goto),
+    // or clear it so the new directory's items show unfiltered.
+    qp.value = initialFilter;
   }
 
   private iconPathForFile(

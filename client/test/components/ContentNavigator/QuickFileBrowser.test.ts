@@ -635,6 +635,308 @@ describe("QuickFileBrowser (integration)", function () {
   });
 
   // -----------------------------------------------------------------------
+  // task 6.5 – absolute path handling
+  // -----------------------------------------------------------------------
+  describe("task 6.5 – absolute path handling", function () {
+
+    // -------------------------------------------------------------------
+    // T6.5-1. Goto item splits path into parent + filter
+    // -------------------------------------------------------------------
+    it("goto item splits /home/user/file.sas into parent dir and base filter", async () => {
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      // Simulate typing an absolute path with a filename
+      (activeQuickPick! as unknown as { value: string }).value =
+        "/home/user/file.sas";
+      // Manually fire onDidChangeValue by setting value through the real QuickPick
+      // The real VS Code QP fires onDidChangeValue when value is set programmatically.
+      // We need to set it on the underlying vscode QuickPick which fires the event.
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/home/user/file.sas";
+      await sleep(50);
+
+      type GotoLike = {
+        kind: string;
+        label: string;
+        description: string;
+        path: string;
+        filterText: string;
+      };
+
+      const firstItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(firstItem.kind, "goto", "first item should be a goto item");
+      assert.include(
+        firstItem.label,
+        "Go to /home/user/",
+        "label should contain the parent directory",
+      );
+      assert.include(
+        firstItem.description,
+        "file.sas",
+        "description should contain the basename",
+      );
+      assert.equal(firstItem.path, "/home/user/");
+      assert.equal(firstItem.filterText, "file.sas");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // T6.5-2. Goto item for trailing-slash path
+    // -------------------------------------------------------------------
+    it("goto item for trailing-slash path uses 'Navigate to path' description", async () => {
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/home/user/";
+      await sleep(50);
+
+      type GotoLike = {
+        kind: string;
+        label: string;
+        description: string;
+        path: string;
+        filterText: string;
+      };
+
+      const firstItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(firstItem.kind, "goto");
+      assert.include(firstItem.label, "Go to /home/user/");
+      assert.equal(firstItem.description, "Navigate to path");
+      assert.equal(firstItem.filterText, "");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // T6.5-3. Goto item for single-level path (e.g. /foo)
+    // -------------------------------------------------------------------
+    it("goto item for /foo navigates to root / with filter 'foo'", async () => {
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/foo";
+      await sleep(50);
+
+      type GotoLike = {
+        kind: string;
+        label: string;
+        description: string;
+        path: string;
+        filterText: string;
+      };
+
+      const firstItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(firstItem.kind, "goto");
+      assert.include(firstItem.label, "Go to /");
+      assert.equal(firstItem.filterText, "foo");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // T6.5-4. Accepting goto pre-fills qp.value with the basename filter
+    // -------------------------------------------------------------------
+    it("accepting goto item pre-fills qp.value with the basename", async () => {
+      // We need to capture the onDidAccept listener registered by QuickFileBrowser
+      // so we can fire it programmatically from the test.
+      let capturedAcceptListener: (() => void) | undefined;
+
+      // Re-stub createQuickPick for this test to also intercept onDidAccept
+      sandbox.restore();
+      sandbox = sinon.createSandbox();
+      setContextStub = sandbox.stub();
+      const originalExec = commands.executeCommand;
+      sandbox.stub(commands, "executeCommand").callsFake(async (...args: unknown[]) => {
+        if (args[0] === "setContext") {
+          setContextStub(...args);
+          return undefined;
+        }
+        return (originalExec as Function).apply(commands, args);
+      });
+
+      const originalCreate2 = window.createQuickPick.bind(window);
+      sandbox.stub(window, "createQuickPick").callsFake(() => {
+        const qp = originalCreate2();
+        activeQuickPick = qp;
+        // Wrap onDidAccept to capture the registered listener
+        const origOnDidAccept = qp.onDidAccept.bind(qp);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (qp as any).onDidAccept = (listener: () => void) => {
+          capturedAcceptListener = listener;
+          return origOnDidAccept(listener);
+        };
+        return qp;
+      });
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, []],
+          ["/some/path/", []],
+          ["/some/path", []],
+          ["/some/", []],
+          ["/some", []],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedAcceptListener, "onDidAccept listener should be captured");
+
+      // Type an absolute path with a filename to produce a goto item
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/some/path/myfile.sas";
+      await sleep(50);
+
+      type GotoLike = {
+        kind: string;
+        label: string;
+        description: string;
+        path: string;
+        filterText: string;
+      };
+      const gotoItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(gotoItem.kind, "goto", "first item should be goto");
+
+      // Override selectedItems so that when capturedAcceptListener fires, the
+      // handler reads the goto item from qp.selectedItems[0].
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.defineProperty(realQp, "selectedItems", {
+        get: () => [activeQuickPick!.items[0]],
+        configurable: true,
+      });
+
+      // Fire the captured accept listener directly — simulates the user pressing Enter
+      capturedAcceptListener!();
+
+      // Wait for the async loadFolder to complete
+      await sleep(300);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.equal(
+        activeQuickPick!.value,
+        "myfile.sas",
+        "qp.value should be pre-filled with the basename after goto acceptance",
+      );
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -------------------------------------------------------------------
+    // T6.5-5. Accepting goto with trailing slash sets qp.value to ""
+    // -------------------------------------------------------------------
+    it("accepting goto item with trailing slash sets qp.value to empty string", async () => {
+      // Capture the onDidAccept listener the same way as T6.5-4
+      let capturedAcceptListener: (() => void) | undefined;
+
+      sandbox.restore();
+      sandbox = sinon.createSandbox();
+      setContextStub = sandbox.stub();
+      const originalExec = commands.executeCommand;
+      sandbox.stub(commands, "executeCommand").callsFake(async (...args: unknown[]) => {
+        if (args[0] === "setContext") {
+          setContextStub(...args);
+          return undefined;
+        }
+        return (originalExec as Function).apply(commands, args);
+      });
+
+      const originalCreate3 = window.createQuickPick.bind(window);
+      sandbox.stub(window, "createQuickPick").callsFake(() => {
+        const qp = originalCreate3();
+        activeQuickPick = qp;
+        const origOnDidAccept = qp.onDidAccept.bind(qp);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (qp as any).onDidAccept = (listener: () => void) => {
+          capturedAcceptListener = listener;
+          return origOnDidAccept(listener);
+        };
+        return qp;
+      });
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, []],
+          ["/some/path/", []],
+          ["/some/path", []],
+          ["/some/", []],
+          ["/some", []],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedAcceptListener, "onDidAccept listener should be captured");
+
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/some/path/";
+      await sleep(50);
+
+      type GotoLike = { kind: string; filterText: string };
+      const gotoItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(gotoItem.kind, "goto");
+      assert.equal(gotoItem.filterText, "", "filterText should be empty for trailing-slash path");
+
+      // Override selectedItems so the accept handler sees the goto item
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.defineProperty(realQp, "selectedItems", {
+        get: () => [activeQuickPick!.items[0]],
+        configurable: true,
+      });
+
+      capturedAcceptListener!();
+
+      await sleep(300);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.equal(
+        activeQuickPick!.value,
+        "",
+        "qp.value should be empty string after accepting a trailing-slash goto",
+      );
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // key binding commands
   // -----------------------------------------------------------------------
   describe("key binding commands", function () {

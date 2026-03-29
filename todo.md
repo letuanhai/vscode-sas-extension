@@ -11,7 +11,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.2 add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
     - [x] 6.3 fix placeholder text: only keep type to filter and enter absolute path
     - [x] 6.4 close quick browser after reveal
-    - [ ] 6.5 change absolute path handling: show parent folder with filename in filter
+    - [x] 6.5 change absolute path handling: show parent folder with filename in filter
     - [ ] 6.6 action to start browsing at current opened editor file path
     - [ ] 6.7 add history/bookmarks for quick file browser
     - [ ] 6.8 allow configuring root browsing path
