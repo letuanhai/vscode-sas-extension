@@ -3,6 +3,7 @@
 import { expect } from "chai";
 
 import {
+  deriveParentPath,
   isFolder,
   sortContentItems,
   syntheticFolder,
@@ -202,5 +203,34 @@ describe("sortContentItems", () => {
     const sorted = sortContentItems([item]);
     expect(sorted).to.have.lengthOf(1);
     expect(sorted[0].name).to.equal("solo.sas");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deriveParentPath
+// ---------------------------------------------------------------------------
+describe("deriveParentPath", () => {
+  it('returns "/home" for "/home/sasdemo"', () => {
+    expect(deriveParentPath("/home/sasdemo")).to.equal("/home");
+  });
+
+  it('returns undefined for "/home" (root-level path, lastSlash === 0)', () => {
+    expect(deriveParentPath("/home")).to.be.undefined;
+  });
+
+  it('returns undefined for "/" (already root)', () => {
+    expect(deriveParentPath("/")).to.be.undefined;
+  });
+
+  it('returns "/a/b" for "/a/b/c"', () => {
+    expect(deriveParentPath("/a/b/c")).to.equal("/a/b");
+  });
+
+  it('strips trailing slash and returns "/a/b" for "/a/b/c/"', () => {
+    expect(deriveParentPath("/a/b/c/")).to.equal("/a/b");
+  });
+
+  it('returns "/home/sasdemo" for "/home/sasdemo/projects"', () => {
+    expect(deriveParentPath("/home/sasdemo/projects")).to.equal("/home/sasdemo");
   });
 });

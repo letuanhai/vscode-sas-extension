@@ -5,6 +5,7 @@ import {
   Disposable,
   Event,
   ExtensionContext,
+  Memento,
   OpenDialogOptions,
   ProgressLocation,
   Uri,
@@ -26,7 +27,10 @@ import { ContentModel } from "./ContentModel";
 import QuickFileBrowser, {
   getActiveItem,
   getActiveQuickPick,
+  getActiveStoredItem,
+  toggleBookmarkActiveItem,
 } from "./QuickFileBrowser";
+import { QuickFileBrowserStore } from "./QuickFileBrowserStore";
 import { Messages } from "./const";
 import { NotebookToFlowConverter } from "./convert";
 import {
@@ -72,9 +76,11 @@ class ContentNavigator implements SubscriptionProvider {
   private sourceType: ContentNavigatorConfig["sourceType"];
   private treeIdentifier: ContentNavigatorConfig["treeIdentifier"];
   private extensionUri: Uri;
+  private readonly memento: Memento;
 
   constructor(context: ExtensionContext, config: ContentNavigatorConfig) {
     this.extensionUri = context.extensionUri;
+    this.memento = context.globalState;
     this.sourceType = config.sourceType;
     this.treeIdentifier = config.treeIdentifier;
     this.contentModel = new ContentModel(
@@ -495,6 +501,7 @@ class ContentNavigator implements SubscriptionProvider {
                   this.contentModel,
                   (item) => this.contentDataProvider.reveal(item),
                   this.extensionUri,
+                  new QuickFileBrowserStore(this.memento),
                 );
                 await browser.show(arg);
               },
@@ -508,9 +515,14 @@ class ContentNavigator implements SubscriptionProvider {
             }),
             commands.registerCommand(`${SAS}.quickBrowseTabItem`, () => {
               const item = getActiveItem();
+              const storedItem = getActiveStoredItem();
               const qp = getActiveQuickPick();
-              if (item && qp) {
-                qp.value = item.name;
+              if (qp) {
+                if (item) {
+                  qp.value = item.name;
+                } else if (storedItem) {
+                  qp.value = storedItem.uri;
+                }
               }
             }),
             commands.registerCommand(`${SAS}.quickBrowseCopyPath`, () => {
@@ -518,6 +530,9 @@ class ContentNavigator implements SubscriptionProvider {
               if (item) {
                 void env.clipboard.writeText(item.uri);
               }
+            }),
+            commands.registerCommand(`${SAS}.quickBrowseBookmarkItem`, () => {
+              toggleBookmarkActiveItem();
             }),
           ]
         : []),

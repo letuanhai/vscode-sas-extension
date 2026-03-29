@@ -13,7 +13,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.4 close quick browser after reveal
     - [x] 6.5 change absolute path handling: show parent folder with filename in filter
     - [x] 6.6 if current active editor is a file on SAS server (opended from SAS extension) then put the file path (uri) as the initial value in the quick input
-    - [ ] 6.7 add history/bookmarks for quick file browser
+    - [x] 6.7 add history/bookmarks for quick file browser
     - [ ] 6.8 allow configuring root browsing path
     - [ ] 6.9 change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
 - [ ] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section

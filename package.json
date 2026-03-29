@@ -901,6 +901,11 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.server.quickBrowseBookmarkItem",
+        "title": "Quick Browser: Toggle Bookmark",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.refreshLibraries",
         "title": "%commands.SAS.refresh%",
         "category": "SAS",
@@ -974,6 +979,11 @@
       {
         "key": "alt+c",
         "command": "SAS.server.quickBrowseCopyPath",
+        "when": "SAS.quickBrowseOpen && inQuickOpen"
+      },
+      {
+        "key": "alt+b",
+        "command": "SAS.server.quickBrowseBookmarkItem",
         "when": "SAS.quickBrowseOpen && inQuickOpen"
       },
       {
@@ -1257,6 +1267,10 @@
         },
         {
           "command": "SAS.server.quickBrowseCopyPath",
+          "when": "false"
+        },
+        {
+          "command": "SAS.server.quickBrowseBookmarkItem",
           "when": "false"
         },
         {

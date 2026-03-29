@@ -1,8 +1,16 @@
 // Copyright © 2023, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { QuickInputButton, ThemeIcon, Uri, commands, window } from "vscode";
+import {
+  QuickInputButton,
+  QuickPickItemKind,
+  ThemeIcon,
+  Uri,
+  commands,
+  window,
+} from "vscode";
 
 import { ContentModel } from "./ContentModel";
+import { QuickFileBrowserStore, StoredItem } from "./QuickFileBrowserStore";
 import { ContentItem, Link } from "./types";
 
 // Module-level active item — lets the keybinding command (`SAS.server.quickBrowseReveal`)
@@ -19,11 +27,51 @@ export function getActiveQuickPick(): BrowserQuickPick | undefined {
   return _activeQp;
 }
 
+// Module-level stored item — set when a history/bookmark item is active.
+let _activeStoredItem: StoredItem | undefined;
+export function getActiveStoredItem(): StoredItem | undefined {
+  return _activeStoredItem;
+}
+
+// Module-level refresh callback — allows commands to trigger an item refresh.
+let _refreshItems: (() => void) | undefined;
+
+// Module-level store reference — allows commands to interact with the store.
+let _currentStore: QuickFileBrowserStore | undefined;
+
+// Called by the quickBrowseBookmarkItem command (Alt+B keybinding).
+// Toggles bookmark on the currently active folder/file item and refreshes the list.
+export function toggleBookmarkActiveItem(): void {
+  const item = _activeItem;
+  if (item && _currentStore) {
+    _currentStore.toggleBookmark(item, isFolder(item));
+    _refreshItems?.();
+  }
+}
+
 // Button shown on each file/folder item — clicking it reveals the item in the
 // SAS sidebar file tree without closing the QuickPick.
 const REVEAL_BUTTON: QuickInputButton = {
   iconPath: new ThemeIcon("list-tree"),
   tooltip: "Reveal in SAS File Tree (or press Alt+Enter)",
+};
+
+const BOOKMARK_ADD_BUTTON: QuickInputButton = {
+  iconPath: new ThemeIcon("star"),
+  tooltip: "Add to Bookmarks",
+};
+const BOOKMARK_REMOVE_BUTTON: QuickInputButton = {
+  iconPath: new ThemeIcon("star-full"),
+  tooltip: "Remove from Bookmarks",
+};
+const REMOVE_BUTTON: QuickInputButton = {
+  iconPath: new ThemeIcon("close"),
+  tooltip: "Remove",
+};
+
+const CLEAR_HISTORY_BUTTON: QuickInputButton = {
+  iconPath: new ThemeIcon("clear-all"),
+  tooltip: "Clear Recent History",
 };
 
 // ---------------------------------------------------------------------------
@@ -49,6 +97,15 @@ export function syntheticFolder(path: string): ContentItem {
     modifiedTimeStamp: 0,
     permission: { write: false, delete: false, addMember: false },
   };
+}
+
+/** Returns the parent path of a server URI, or undefined if already at root level. */
+export function deriveParentPath(uri: string): string | undefined {
+  const normalized =
+    uri.length > 1 && uri.endsWith("/") ? uri.slice(0, -1) : uri;
+  const lastSlash = normalized.lastIndexOf("/");
+  if (lastSlash <= 0) return undefined;
+  return normalized.slice(0, lastSlash);
 }
 
 export function isFolder(item: ContentItem): boolean {
@@ -116,7 +173,33 @@ interface GotoItem {
   filterText: string;
 }
 
-type BrowserQuickPickItem = ParentItem | FolderItem | FileItem | GotoItem;
+interface HistoryItem {
+  kind: "history";
+  label: string;
+  iconPath: ThemeIcon | { light: Uri; dark: Uri };
+  resourceUri?: Uri;
+  description?: string;
+  storedItem: StoredItem;
+  buttons: readonly QuickInputButton[];
+}
+
+interface BookmarkItem {
+  kind: "bookmark";
+  label: string;
+  iconPath: ThemeIcon | { light: Uri; dark: Uri };
+  resourceUri?: Uri;
+  description?: string;
+  storedItem: StoredItem;
+  buttons: readonly QuickInputButton[];
+}
+
+type BrowserQuickPickItem =
+  | ParentItem
+  | FolderItem
+  | FileItem
+  | GotoItem
+  | HistoryItem
+  | BookmarkItem;
 
 // QuickPick<T> requires T extends QuickPickItem. Our BrowserQuickPickItem
 // fails that constraint because the string-literal `kind` discriminant
@@ -145,6 +228,10 @@ interface BrowserQuickPick {
       item: BrowserQuickPickItem;
     }) => void,
   ): { dispose(): void };
+  buttons: readonly QuickInputButton[];
+  onDidTriggerButton(
+    listener: (button: QuickInputButton) => void,
+  ): { dispose(): void };
   show(): void;
   hide(): void;
   dispose(): void;
@@ -158,15 +245,18 @@ export default class QuickFileBrowser {
   private contentModel: ContentModel;
   private onReveal: ((item: ContentItem) => void) | undefined;
   private extensionUri: Uri | undefined;
+  private store: QuickFileBrowserStore | undefined;
 
   constructor(
     contentModel: ContentModel,
     onReveal?: (item: ContentItem) => void,
     extensionUri?: Uri,
+    store?: QuickFileBrowserStore,
   ) {
     this.contentModel = contentModel;
     this.onReveal = onReveal;
     this.extensionUri = extensionUri;
+    this.store = store;
   }
 
   async show(arg?: ContentItem | string): Promise<void> {
@@ -218,13 +308,41 @@ export default class QuickFileBrowser {
       const v = version.current;
       const filter = nextFilter;
       nextFilter = "";
-      void this.loadFolder(currentFolder(), qp, stack, cache, version, v, filter).catch(
-        (err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
-        },
-      );
+      void this.loadFolder(
+        currentFolder(),
+        qp,
+        stack,
+        cache,
+        version,
+        v,
+        filter,
+        this.store,
+      ).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
+      });
     };
+
+    // Rebuild items for the current folder without bumping the version counter
+    // (uses cached data if available). Used after bookmark/history changes.
+    const refreshItems = (): void => {
+      void this.loadFolder(
+        currentFolder(),
+        qp,
+        stack,
+        cache,
+        version,
+        version.current,
+        qp.value,
+        this.store,
+      ).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
+      });
+    };
+
+    _refreshItems = refreshItems;
+    _currentStore = this.store;
 
     qp.onDidAccept(() => {
       const selected = qp.selectedItems[0];
@@ -233,7 +351,13 @@ export default class QuickFileBrowser {
       }
 
       if (selected.kind === "parent") {
-        stack.pop();
+        const popped = stack.pop();
+        if (stack.length === 0 && popped) {
+          const parentPath = deriveParentPath(popped.uri);
+          if (parentPath !== undefined) {
+            stack.push(syntheticFolder(parentPath));
+          }
+        }
         reload();
       } else if (selected.kind === "folder") {
         stack.push(selected.item);
@@ -247,9 +371,10 @@ export default class QuickFileBrowser {
         qp.busy = true;
         this.contentModel
           .getUri(fileItem, false)
-          .then((uri: Uri) =>
-            commands.executeCommand("SAS.server.openItem", uri),
-          )
+          .then((uri: Uri) => {
+            this.store?.pushHistory(fileItem, false, uri.toString());
+            return commands.executeCommand("SAS.server.openItem", uri);
+          })
           .then(() => {
             qp.hide();
           })
@@ -258,6 +383,43 @@ export default class QuickFileBrowser {
             void window.showErrorMessage(`Failed to open file: ${msg}`);
             qp.busy = false;
           });
+      } else if (
+        selected.kind === "history" ||
+        selected.kind === "bookmark"
+      ) {
+        const s = selected.storedItem;
+        if (s.isFolder) {
+          stack.push(syntheticFolder(s.uri));
+          reload();
+        } else {
+          // Open file: use cached vsUri if available (history entries), otherwise
+          // reconstruct via getUri() (bookmarks added via button click have no vsUri)
+          qp.busy = true;
+          const openUri: Promise<Uri> = s.vsUri
+            ? Promise.resolve(Uri.parse(s.vsUri))
+            : this.contentModel.getUri(
+                {
+                  id: s.uri,
+                  uri: s.uri,
+                  name: s.name,
+                  links: [],
+                  creationTimeStamp: 0,
+                  modifiedTimeStamp: 0,
+                  permission: { write: false, delete: false, addMember: false },
+                },
+                false,
+              );
+          openUri
+            .then((uri) => commands.executeCommand("SAS.server.openItem", uri))
+            .then(() => {
+              qp.hide();
+            })
+            .catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              void window.showErrorMessage(`Failed to open file: ${msg}`);
+              qp.busy = false;
+            });
+        }
       }
     });
 
@@ -292,10 +454,61 @@ export default class QuickFileBrowser {
         first?.kind === "folder" || first?.kind === "file"
           ? first.item
           : undefined;
+      _activeStoredItem =
+        first?.kind === "history" || first?.kind === "bookmark"
+          ? first.storedItem
+          : undefined;
+    });
+
+    qp.onDidTriggerButton((btn) => {
+      if (btn === CLEAR_HISTORY_BUTTON) {
+        this.store?.clearHistory();
+        refreshItems();
+      }
     });
 
     qp.onDidTriggerItemButton((e) => {
       const it = e.item;
+      const btn = e.button;
+
+      if (btn === REMOVE_BUTTON) {
+        if (it.kind === "history") {
+          this.store?.removeHistory(it.storedItem.uri);
+          refreshItems();
+        } else if (it.kind === "bookmark") {
+          this.store?.removeBookmark(it.storedItem.uri);
+          refreshItems();
+        }
+        return;
+      }
+
+      if (btn === BOOKMARK_ADD_BUTTON || btn === BOOKMARK_REMOVE_BUTTON) {
+        if (it.kind === "folder" || it.kind === "file") {
+          const isFile = it.kind === "file";
+          const adding = !this.store?.isBookmarked(it.item.uri);
+          if (isFile && adding) {
+            // Eagerly fetch vsUri so the bookmark can be opened later without a
+            // live server call (which would fail on the synthetic ContentItem).
+            this.contentModel
+              .getUri(it.item, false)
+              .then((uri) => {
+                this.store?.addBookmark(it.item, false, uri.toString());
+                refreshItems();
+              })
+              .catch(() => {
+                // Fallback: store without vsUri (open will still try getUri later)
+                this.store?.addBookmark(it.item, false);
+                refreshItems();
+              });
+          } else {
+            this.store?.toggleBookmark(it.item, it.kind === "folder");
+            refreshItems();
+          }
+        }
+        return;
+      }
+
+      // REVEAL_BUTTON
       if ((it.kind === "folder" || it.kind === "file") && this.onReveal) {
         this.onReveal(it.item);
         qp.hide();
@@ -305,6 +518,9 @@ export default class QuickFileBrowser {
     qp.onDidHide(() => {
       _activeQp = undefined;
       _activeItem = undefined;
+      _activeStoredItem = undefined;
+      _refreshItems = undefined;
+      _currentStore = undefined;
       void commands.executeCommand("setContext", "SAS.quickBrowseOpen", false);
       cache.clear();
       qp.dispose();
@@ -323,6 +539,7 @@ export default class QuickFileBrowser {
     version: { current: number },
     expectedVersion: number,
     initialFilter = "",
+    store?: QuickFileBrowserStore,
   ): Promise<void> {
     qp.busy = true;
 
@@ -358,16 +575,19 @@ export default class QuickFileBrowser {
         ? [{ kind: "parent", label: "..", iconPath: new ThemeIcon("arrow-left") }]
         : [];
 
-    const folderItems: FolderItem[] = sorted
-      .filter(isFolder)
-      .map((item) => ({
-        kind: "folder" as const,
-        label: item.name,
-        iconPath: new ThemeIcon("folder"),
-        description: item.uri,
-        item,
-        buttons: [REVEAL_BUTTON],
-      }));
+    const folderItems: FolderItem[] = sorted.filter(isFolder).map((item) => ({
+      kind: "folder" as const,
+      label: item.name,
+      iconPath: new ThemeIcon("folder"),
+      description: item.uri,
+      item,
+      buttons: [
+        store?.isBookmarked(item.uri)
+          ? BOOKMARK_REMOVE_BUTTON
+          : BOOKMARK_ADD_BUTTON,
+        REVEAL_BUTTON,
+      ],
+    }));
 
     const fileItems: FileItem[] = sorted
       .filter((item) => !isFolder(item))
@@ -377,10 +597,84 @@ export default class QuickFileBrowser {
         iconPath: this.iconPathForFile(item.name),
         resourceUri: Uri.file(item.name),
         item,
-        buttons: [REVEAL_BUTTON],
+        buttons: [
+          store?.isBookmarked(item.uri)
+            ? BOOKMARK_REMOVE_BUTTON
+            : BOOKMARK_ADD_BUTTON,
+          REVEAL_BUTTON,
+        ],
       }));
 
-    qp.items = [...parentItems, ...folderItems, ...fileItems];
+    // Only add history/bookmarks at root level
+    const suffixItems: BrowserQuickPickItem[] = [];
+    if (stack.length === 0 && store) {
+      const bookmarks = store.getBookmarks();
+      const history = store.getHistory();
+
+      if (bookmarks.length > 0) {
+        suffixItems.push({
+          kind: QuickPickItemKind.Separator,
+          label: "Bookmarks",
+        } as unknown as BrowserQuickPickItem);
+        for (const b of bookmarks) {
+          suffixItems.push({
+            kind: "bookmark",
+            label: b.name,
+            iconPath: b.isFolder ? new ThemeIcon("folder") : this.iconPathForFile(b.name),
+            resourceUri: b.isFolder ? undefined : Uri.file(b.name),
+            description: b.uri,
+            storedItem: b,
+            buttons: [REMOVE_BUTTON],
+          } satisfies BookmarkItem);
+        }
+      }
+
+      if (history.length > 0) {
+        suffixItems.push({
+          kind: QuickPickItemKind.Separator,
+          label: "Recent",
+        } as unknown as BrowserQuickPickItem);
+        for (const h of history) {
+          suffixItems.push({
+            kind: "history",
+            label: h.name,
+            iconPath: h.isFolder ? new ThemeIcon("folder") : this.iconPathForFile(h.name),
+            resourceUri: h.isFolder ? undefined : Uri.file(h.name),
+            description: h.uri,
+            storedItem: h,
+            buttons: [REMOVE_BUTTON],
+          } satisfies HistoryItem);
+        }
+      }
+    }
+
+    // "Server Files" separator appears at the top when supplementary sections exist
+    const serverFilesSep: BrowserQuickPickItem[] =
+      suffixItems.length > 0
+        ? ([
+            {
+              kind: QuickPickItemKind.Separator,
+              label: "Server Files",
+            } as unknown as BrowserQuickPickItem,
+          ])
+        : [];
+
+    qp.items = [
+      ...serverFilesSep,
+      ...parentItems,
+      ...folderItems,
+      ...fileItems,
+      ...suffixItems,
+    ];
+
+    // Show the clear-history title button only when there is history at root level
+    if (stack.length === 0 && store) {
+      const history = store.getHistory();
+      qp.buttons = history.length > 0 ? [CLEAR_HISTORY_BUTTON] : [];
+    } else if (stack.length === 0) {
+      qp.buttons = [];
+    }
+
     // Set the text filter: pre-fill with initialFilter (e.g. filename from a goto),
     // or clear it so the new directory's items show unfiltered.
     qp.value = initialFilter;
