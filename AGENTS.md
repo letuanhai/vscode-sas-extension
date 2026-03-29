@@ -78,6 +78,7 @@ npm run test-client:label integration
 4. **Mock the data layer, not the UI layer** — create stub adapters implementing `ContentAdapter` (or similar interfaces) that return predetermined data. Pass them into real model classes. This tests the full integration from model → UI without needing a live server.
 5. **Use polling helpers for async UI** — QuickPick items load asynchronously. Use a `waitForNotBusy()` polling helper (check `qp.busy` every ~50ms with a timeout) rather than fixed `sleep()` calls.
 6. **Clean up in `afterEach`** — always hide/dispose QuickPicks and restore sinon sandboxes to avoid leaking state between tests.
+7. **Assert visible UI state, not internal state** — integration tests must assert what the user actually sees: `qp.title`, `qp.items[].label`, `qp.items[].description`, item order. Do NOT write integration tests that only call an exported helper function directly — those belong in `test-harness` instead. Pure helpers that don't need the vscode API (even if they accept `vscode` types as parameters) should be tested in harness using plain object fakes.
 
 #### Building and running
 
