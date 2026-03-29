@@ -1083,4 +1083,162 @@ describe("QuickFileBrowser (integration)", function () {
       await showPromise;
     });
   });
+
+  // -----------------------------------------------------------------------
+  // task 6.6 – active SAS server editor pre-fills path
+  // -----------------------------------------------------------------------
+  describe("task 6.6 – active SAS server editor pre-fills path", function () {
+    // -----------------------------------------------------------------------
+    // T6.6-1. sasServer file pre-fills input with full path, stays at root
+    // -----------------------------------------------------------------------
+    it("pre-fills input with full server path when active editor is a sasServer file", async () => {
+      sandbox.stub(window, "activeTextEditor").get(() => ({
+        document: { uri: Uri.parse("sasServer:/home/user/myfile.sas") },
+      }));
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+      await sleep(50); // allow onDidChangeValue to fire after qp.value is set
+
+      // Stays at root — no navigation
+      assert.equal(activeQuickPick!.title, "SAS Server", "title should be SAS Server (at root)");
+      assert.notInclude(
+        activeQuickPick!.items.map((i) => i.label),
+        "..",
+        "should be at root, no parent entry",
+      );
+      // Full path in the input box
+      assert.equal(activeQuickPick!.value, "/home/user/myfile.sas");
+      // GotoItem is shown pointing at the parent dir
+      type GotoLike = { kind: string; path: string; filterText: string };
+      const gotoItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(gotoItem.kind, "goto");
+      assert.equal(gotoItem.path, "/home/user/");
+      assert.equal(gotoItem.filterText, "myfile.sas");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------------
+    // T6.6-2. sasServerReadOnly scheme also pre-fills
+    // -----------------------------------------------------------------------
+    it("pre-fills input when active editor uses sasServerReadOnly scheme", async () => {
+      sandbox.stub(window, "activeTextEditor").get(() => ({
+        document: { uri: Uri.parse("sasServerReadOnly:/opt/sas/config.sas") },
+      }));
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+      await sleep(50);
+
+      assert.equal(activeQuickPick!.title, "SAS Server");
+      assert.equal(activeQuickPick!.value, "/opt/sas/config.sas");
+      type GotoLike = { kind: string; path: string; filterText: string };
+      const gotoItem = activeQuickPick!.items[0] as unknown as GotoLike;
+      assert.equal(gotoItem.kind, "goto");
+      assert.equal(gotoItem.path, "/opt/sas/");
+      assert.equal(gotoItem.filterText, "config.sas");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------------
+    // T6.6-3. Non-SAS file (file: scheme) does not pre-fill
+    // -----------------------------------------------------------------------
+    it("does not pre-fill when active editor is a local file (file: scheme)", async () => {
+      sandbox.stub(window, "activeTextEditor").get(() => ({
+        document: { uri: Uri.file("/local/path/myfile.sas") },
+      }));
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      // Should start at root (no ".." parent entry)
+      const labels = activeQuickPick!.items.map((i) => i.label);
+      assert.notInclude(labels, "..", "should be at root, no parent entry");
+      assert.equal(activeQuickPick!.title, "SAS Server", "title should be SAS Server at root");
+      assert.equal(activeQuickPick!.value, "", "value should be empty");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------------
+    // T6.6-4. No active editor does not pre-fill
+    // -----------------------------------------------------------------------
+    it("does not pre-fill when there is no active editor", async () => {
+      sandbox.stub(window, "activeTextEditor").get(() => undefined);
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([[undefined, []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const labels = activeQuickPick!.items.map((i) => i.label);
+      assert.notInclude(labels, "..", "should be at root, no parent entry");
+      assert.equal(activeQuickPick!.title, "SAS Server");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------------
+    // T6.6-5. Explicit arg takes priority over active editor
+    // -----------------------------------------------------------------------
+    it("explicit string arg takes priority over active editor pre-fill", async () => {
+      sandbox.stub(window, "activeTextEditor").get(() => ({
+        document: { uri: Uri.parse("sasServer:/home/user/myfile.sas") },
+      }));
+
+      const homeChildren = [makeFolder("subdir", "/home/subdir")];
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, []],
+          ["/home/", homeChildren],
+          ["/home/user/", [makeFile("myfile.sas", "/home/user/myfile.sas")]],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      // Explicit path arg — should start there, not at the active editor's parent
+      const showPromise = browser.show("/home/");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.equal(activeQuickPick!.title, "/home/", "title should be the explicit arg, not active editor parent");
+      assert.equal(activeQuickPick!.value, "", "value should be empty (no active-editor pre-fill)");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+  });
 });

@@ -183,18 +183,29 @@ export default class QuickFileBrowser {
     // Navigation stack: last element is the current folder; empty = root
     const stack: ContentItem[] = [];
 
+    // Filter text to pre-fill after the next navigation (set by goto acceptance)
+    let nextFilter = "";
+
     // Determine initial folder from argument
     if (typeof arg === "string") {
       stack.push(syntheticFolder(arg));
     } else if (arg !== undefined) {
       stack.push(arg);
+    } else {
+      // Task 6.6: no explicit arg — if the active editor is a SAS server file,
+      // pre-fill the input with its full path (stays at root; the onDidChangeValue
+      // handler will show the GotoItem automatically).
+      const activeUri = window.activeTextEditor?.document.uri;
+      if (
+        activeUri?.scheme === "sasServer" ||
+        activeUri?.scheme === "sasServerReadOnly"
+      ) {
+        nextFilter = activeUri.path;
+      }
     }
 
     // Per-session cache keyed by folder URI (or "root" for the root listing)
     const cache = new Map<string, ContentItem[]>();
-
-    // Filter text to pre-fill after the next navigation (set by goto acceptance)
-    let nextFilter = "";
 
     // Monotonic version counter used to discard stale async responses
     const version = { current: 0 };
