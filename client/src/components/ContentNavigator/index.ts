@@ -212,10 +212,14 @@ class ContentNavigator implements SubscriptionProvider {
       ),
       commands.registerCommand(
         `${SAS}.addFileResource`,
-        async (resource: ContentItem) => {
+        async (resource: ContentItem | undefined) => {
+          const parent = await this.resolveParentFolder(resource);
+          if (!parent) {
+            return;
+          }
           // Pre-fetch sibling names for duplicate validation in the input box
           const existingChildren =
-            (await this.contentDataProvider.getChildren(resource)) || [];
+            (await this.contentDataProvider.getChildren(parent)) || [];
           const existingNames = new Set(
             existingChildren.map((child) => child.name),
           );
@@ -239,11 +243,11 @@ class ContentNavigator implements SubscriptionProvider {
           }
 
           const newUri = await this.contentDataProvider.createFile(
-            resource,
+            parent,
             fileName,
           );
           this.contentDataProvider.handleCreationResponse(
-            resource,
+            parent,
             newUri,
             l10n.t(Messages.NewFileCreationError, { name: fileName }),
           );
@@ -255,7 +259,11 @@ class ContentNavigator implements SubscriptionProvider {
       ),
       commands.registerCommand(
         `${SAS}.addFolderResource`,
-        async (resource: ContentItem) => {
+        async (resource: ContentItem | undefined) => {
+          const parent = await this.resolveParentFolder(resource);
+          if (!parent) {
+            return;
+          }
           const folderName = await window.showInputBox({
             prompt: Messages.NewFolderPrompt,
             title: Messages.NewFolderTitle,
@@ -267,11 +275,11 @@ class ContentNavigator implements SubscriptionProvider {
           }
 
           const newUri = await this.contentDataProvider.createFolder(
-            resource,
+            parent,
             folderName,
           );
           this.contentDataProvider.handleCreationResponse(
-            resource,
+            parent,
             newUri,
             l10n.t(Messages.NewFolderCreationError, { name: folderName }),
           );
@@ -406,7 +414,7 @@ class ContentNavigator implements SubscriptionProvider {
                 return;
               }
 
-              let parentItem;
+              let parentItem: ContentItem | undefined;
               try {
                 const response =
                   await notebookToFlowConverter.convert(outputName);
@@ -555,6 +563,27 @@ class ContentNavigator implements SubscriptionProvider {
         },
       ),
     ];
+  }
+
+  private async resolveParentFolder(
+    resource: ContentItem | undefined,
+  ): Promise<ContentItem | undefined> {
+    if (resource) {
+      return resource;
+    }
+    // Check current tree selection
+    const selection = this.contentDataProvider.treeView.selection;
+    if (selection.length > 0) {
+      const selected = selection[0];
+      if (getIsContainer(selected)) {
+        return selected;
+      }
+      // Selected item is a file — use its parent
+      return await this.contentDataProvider.getParent(selected);
+    }
+    // No selection — use root
+    const rootItems = await this.contentDataProvider.getChildren(undefined);
+    return Array.isArray(rootItems) ? rootItems[0] : undefined;
   }
 
   private async collapseAllContent() {

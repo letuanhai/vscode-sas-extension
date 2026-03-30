@@ -17,7 +17,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [-] 6.8 allow configuring root browsing path: no need, just use bookmark
     - [x] 6.9 change item description: for folder show last modified timestamp, for file show file size and last modified timestamp, for the '..' (go back) item, show the number of files and folders in current folder
 - [-] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section: already added
-- [ ] 8. add actions/buttons to create new file/folder in the file content tree
+- [x] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
 - [x] 10. show output dataset from submission
     - [ ] 10.1. show links/buttons that can be used to open the output tables directly

@@ -728,12 +728,14 @@
       {
         "command": "SAS.content.addFileResource",
         "title": "%commands.SAS.addFileResource%",
-        "category": "SAS"
+        "category": "SAS",
+        "icon": "$(new-file)"
       },
       {
         "command": "SAS.content.addFolderResource",
         "title": "%commands.SAS.addFolderResource%",
-        "category": "SAS"
+        "category": "SAS",
+        "icon": "$(new-folder)"
       },
       {
         "command": "SAS.content.renameResource",
@@ -810,12 +812,14 @@
       {
         "command": "SAS.server.addFileResource",
         "title": "%commands.SAS.addFileResource%",
-        "category": "SAS"
+        "category": "SAS",
+        "icon": "$(new-file)"
       },
       {
         "command": "SAS.server.addFolderResource",
         "title": "%commands.SAS.addFolderResource%",
-        "category": "SAS"
+        "category": "SAS",
+        "icon": "$(new-folder)"
       },
       {
         "command": "SAS.server.renameResource",
@@ -1022,6 +1026,16 @@
       ],
       "view/title": [
         {
+          "command": "SAS.content.addFileResource",
+          "when": "view == contentdataprovider",
+          "group": "navigation@2"
+        },
+        {
+          "command": "SAS.content.addFolderResource",
+          "when": "view == contentdataprovider",
+          "group": "navigation@3"
+        },
+        {
           "command": "SAS.content.refreshContent",
           "when": "view == contentdataprovider",
           "group": "navigation@0"
@@ -1030,6 +1044,16 @@
           "command": "SAS.content.collapseAllContent",
           "when": "view == contentdataprovider",
           "group": "navigation@1"
+        },
+        {
+          "command": "SAS.server.addFileResource",
+          "when": "view == serverdataprovider",
+          "group": "navigation@2"
+        },
+        {
+          "command": "SAS.server.addFolderResource",
+          "when": "view == serverdataprovider",
+          "group": "navigation@3"
         },
         {
           "command": "SAS.server.refreshContent",
@@ -1089,6 +1113,16 @@
           "command": "SAS.content.addFileResource",
           "when": "viewItem =~ /createChild/ && view == contentdataprovider && !listMultiSelection",
           "group": "addgroup@1"
+        },
+        {
+          "command": "SAS.content.addFolderResource",
+          "when": "viewItem =~ /createChild/ && view == contentdataprovider && !listMultiSelection",
+          "group": "inline@0"
+        },
+        {
+          "command": "SAS.content.addFileResource",
+          "when": "viewItem =~ /createChild/ && view == contentdataprovider && !listMultiSelection",
+          "group": "inline@1"
         },
         {
           "command": "SAS.content.addToFavorites",
@@ -1159,6 +1193,16 @@
           "command": "SAS.server.addFileResource",
           "when": "viewItem =~ /createChild/ && view == serverdataprovider",
           "group": "addgroup@1"
+        },
+        {
+          "command": "SAS.server.addFolderResource",
+          "when": "viewItem =~ /createChild/ && view == serverdataprovider && !listMultiSelection",
+          "group": "inline@0"
+        },
+        {
+          "command": "SAS.server.addFileResource",
+          "when": "viewItem =~ /createChild/ && view == serverdataprovider && !listMultiSelection",
+          "group": "inline@1"
         },
         {
           "command": "SAS.server.addToFavorites",
