@@ -5,7 +5,7 @@
 - [ ] 5. Support read/write with server encoding (not UTF-8)
     - [ ] 5.1. ready raw bytes
     - [ ] 5.2. write raw bytes
-- [ ] 6. Quick File Browser — `SAS.server.quickBrowse` command; `Shift+Enter` reveals highlighted item in SAS sidebar file tree; `$(list-tree)` per-item button does the same inline
+- [x] 6. Quick File Browser — `SAS.server.quickBrowse` command; `Shift+Enter` reveals highlighted item in SAS sidebar file tree; `$(list-tree)` per-item button does the same inline
 A keyboard-friendly file browser using `window.createQuickPick()` that composes the existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides fuzzy filtering, absolute path jumping, and fast drill-down navigation.
     - [x] 6.1 fix reveal file functions
     - [x] 6.2 add quickinput key bindings: Tab to put currently focused item name in input box, Alt/Option+C to copy the focused item path (uri)
@@ -14,7 +14,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.5 change absolute path handling: show parent folder with filename in filter
     - [x] 6.6 if current active editor is a file on SAS server (opended from SAS extension) then put the file path (uri) as the initial value in the quick input
     - [x] 6.7 add history/bookmarks for quick file browser
-    - [ ] 6.8 allow configuring root browsing path
+    - [-] 6.8 allow configuring root browsing path: no need, just use bookmark
     - [x] 6.9 change item description: for folder show last modified timestamp, for file show file size and last modified timestamp, for the '..' (go back) item, show the number of files and folders in current folder
 - [ ] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section
 - [ ] 8. add actions/buttons to create new file/folder in the file content tree
