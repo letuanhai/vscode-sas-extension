@@ -14,7 +14,7 @@ import type { BaseLanguageClient } from "vscode-languageclient";
 
 import { basename, dirname, extname } from "path";
 
-import { showResult } from "../components/ResultPanel";
+import { showOutputDatasets } from "../components/run/OutputDatasetPanel";
 import {
   appendExecutionLogFn,
   appendSessionLogFn,
@@ -133,9 +133,7 @@ async function runCode(selected?: boolean, uri?: Uri) {
       return session
         .run(codeDoc.getWrappedCode(), { baseDirectory: basePath })
         .then((results) => {
-          if (results.html5) {
-            showResult(results.html5, uri);
-          }
+          showOutputDatasets(results.html5, results.dataSets ?? [], uri);
         });
     },
   );
@@ -244,13 +242,18 @@ async function _runTask(
     : session
         .run(codeDoc.getWrappedCode(), { baseDirectory: basePath })
         .then((results) => {
-          if (results.html5) {
+          if (results.html5 || (results.dataSets && results.dataSets.length > 0)) {
             messageEmitter.fire(l10n.t("Show results...") + "\r\n");
-            showResult(
-              results.html5,
-              undefined,
-              l10n.t("Result: {result}", { result: taskLabel }),
-            );
+            try {
+              showOutputDatasets(
+                results.html5,
+                results.dataSets ?? [],
+                undefined,
+                l10n.t("Result: {result}", { result: taskLabel }),
+              );
+            } catch {
+              // Non-fatal: result panel may be unavailable, task result is still complete.
+            }
           }
         });
 }

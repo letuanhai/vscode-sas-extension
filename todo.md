@@ -22,6 +22,6 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
 - [x] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
 - [x] 10. show output dataset from submission
-    - [ ] 10.1. show links/buttons that can be used to open the output tables directly
+    - [x] 10.1. show links/buttons that can be used to open the output tables directly
 - [x] 11. show error messages noti when http error code
 - [ ] 12. add command + button to reload SAS tables and command to force reload SAS server file from server (discard unsaved changes)

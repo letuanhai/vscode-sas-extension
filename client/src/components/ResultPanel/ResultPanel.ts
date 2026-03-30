@@ -84,12 +84,20 @@ const wrapPanelHtml = (html: string, panelId: string): string => {
         "</head>",
         `<script language="javascript">
           if(acquireVsCodeApi){
-            const vscode = acquireVsCodeApi();
+            window._vsApi = acquireVsCodeApi();
             const panelId = '${panelId}'
-            vscode.setState({panelId});
+            window._vsApi.setState({panelId});
           }
          </script>
-         <style>html,body { height: 100% !important; }</style></head>`,
+         <style>
+           html,body { height: 100% !important; }
+           /* Auto dark/light mode: match VS Code's active color theme.
+              !important is required to override inline background-color/color
+              that SAS-generated HTML sets directly on <body>. */
+           body.vscode-dark  { color-scheme: dark  !important; background-color: var(--vscode-editor-background, #1e1e1e) !important; color: var(--vscode-editor-foreground, #cccccc) !important; }
+           body.vscode-light { color-scheme: light !important; background-color: var(--vscode-editor-background, #ffffff) !important; color: var(--vscode-editor-foreground, #000000) !important; }
+           body.vscode-high-contrast { color-scheme: dark !important; background-color: var(--vscode-editor-background, #000000) !important; color: var(--vscode-editor-foreground, #ffffff) !important; }
+         </style></head>`,
       )
   );
 };
@@ -110,6 +118,10 @@ export const fetchHtmlFor = async (panelId: string) => {
   panelHtml = panelHtml.replace(SCRIPT_REGEX, "");
 
   return panelHtml;
+};
+
+export const getResultPanelWebview = (): import("vscode").Webview | undefined => {
+  return resultPanel?.webviewPanel.webview;
 };
 
 const disposePanel = (id: string) => {

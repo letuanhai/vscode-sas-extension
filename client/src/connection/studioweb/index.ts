@@ -385,6 +385,13 @@ export class StudioWebSession extends Session {
               line: `NOTE: Output dataset: ${library}.${member}`,
             }));
             this._onExecutionLogFn?.(dataSetLines);
+            runResult = {
+              ...runResult,
+              dataSets: dataSets.map(({ library, member }) => ({
+                library,
+                member,
+              })),
+            };
           }
 
           done = true;
