@@ -24,3 +24,4 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
 - [x] 10. show output dataset from submission
     - [ ] 10.1. show links/buttons that can be used to open the output tables directly
 - [x] 11. show error messages noti when http error code
+- [ ] 12. add command + button to reload SAS tables and command to force reload SAS server file from server (discard unsaved changes)
