@@ -226,6 +226,7 @@ type BrowserQuickPickItem =
 // at the call site.
 interface BrowserQuickPick {
   readonly selectedItems: readonly BrowserQuickPickItem[];
+  activeItems: readonly BrowserQuickPickItem[];
   items: BrowserQuickPickItem[];
   value: string;
   title: string | undefined;
@@ -253,6 +254,14 @@ interface BrowserQuickPick {
   show(): void;
   hide(): void;
   dispose(): void;
+}
+
+/** Returns a stable key for preserving active-item focus across item list refreshes. */
+export function itemKey(item: BrowserQuickPickItem): string | undefined {
+  if (item.kind === "folder" || item.kind === "file") return item.item.uri;
+  if (item.kind === "history" || item.kind === "bookmark") return item.storedItem.uri;
+  if (item.kind === "parent") return "__parent__";
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -691,6 +700,10 @@ export default class QuickFileBrowser {
           ])
         : [];
 
+    // Capture the currently active item so we can restore focus after replacing items.
+    // VS Code resets focus to the first item whenever qp.items is reassigned.
+    const prevKey = qp.activeItems[0] !== undefined ? itemKey(qp.activeItems[0]) : undefined;
+
     qp.items = [
       ...serverFilesSep,
       ...parentItems,
@@ -698,6 +711,16 @@ export default class QuickFileBrowser {
       ...fileItems,
       ...suffixItems,
     ];
+
+    // Restore focus to the previously active item if it still exists in the new list
+    // (same-folder refreshes, e.g. after toggling a bookmark). On navigation to a new
+    // folder the old item won't be found, so focus falls to the first item naturally.
+    if (prevKey !== undefined) {
+      const found = qp.items.find((i) => itemKey(i) === prevKey);
+      if (found !== undefined) {
+        qp.activeItems = [found];
+      }
+    }
 
     // Show the clear-history title button only when there is history at root level
     if (stack.length === 0 && store) {
