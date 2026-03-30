@@ -15,7 +15,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.6 if current active editor is a file on SAS server (opended from SAS extension) then put the file path (uri) as the initial value in the quick input
     - [x] 6.7 add history/bookmarks for quick file browser
     - [ ] 6.8 allow configuring root browsing path
-    - [ ] 6.9 change item description: for folder show number of chilren and last modified time, for file show file size and last modified time; keep item uri as tooltip
+    - [ ] 6.9 change item description: for folder show last modified timestamp, for file show file size and last modified timestamp, for the '..' (go back) item, show the number of files and folders in current folder
 - [ ] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section
 - [ ] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
