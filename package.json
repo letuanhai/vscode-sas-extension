@@ -884,6 +884,16 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.server.reloadFromServer",
+        "title": "Reload from Server",
+        "category": "SAS"
+      },
+      {
+        "command": "SAS.content.reloadFromServer",
+        "title": "Reload from Server",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.server.quickBrowse",
         "title": "Browse Server Files",
         "category": "SAS",
@@ -920,6 +930,18 @@
         "title": "%commands.SAS.collapseAll%",
         "category": "SAS",
         "icon": "$(collapse-all)"
+      },
+      {
+        "command": "SAS.reloadActiveDataViewer",
+        "title": "Reload Data Viewer",
+        "category": "SAS",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "SAS.reloadAllDataViewers",
+        "title": "Reload All Data Viewers",
+        "category": "SAS",
+        "icon": "$(table)"
       },
       {
         "command": "SAS.deleteTable",
@@ -1076,9 +1098,14 @@
           "group": "navigation@0"
         },
         {
-          "command": "SAS.collapseAllLibraries",
+          "command": "SAS.reloadAllDataViewers",
           "when": "view == librarydataprovider",
           "group": "navigation@1"
+        },
+        {
+          "command": "SAS.collapseAllLibraries",
+          "when": "view == librarydataprovider",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [
@@ -1265,6 +1292,25 @@
           "group": "uploaddownloadgroup@1"
         }
       ],
+      "editor/title": [
+        {
+          "command": "SAS.reloadActiveDataViewer",
+          "when": "activeWebviewPanelId == 'SAS.dataViewer'",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "SAS.server.reloadFromServer",
+          "when": "resourceScheme == sasServer",
+          "group": "1_modification"
+        },
+        {
+          "command": "SAS.content.reloadFromServer",
+          "when": "resourceScheme == sasContent",
+          "group": "1_modification"
+        }
+      ],
       "editor/title/run": [
         {
           "when": "(editorLangId == sas || (editorLangId == python && resourceScheme =~ /^sas(Content|Server).*/)) && !SAS.hideRunMenuItem",
@@ -1301,6 +1347,21 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "SAS.server.reloadFromServer",
+          "when": "resourceScheme == sasServer"
+        },
+        {
+          "command": "SAS.content.reloadFromServer",
+          "when": "resourceScheme == sasContent"
+        },
+        {
+          "command": "SAS.reloadActiveDataViewer",
+          "when": "activeWebviewPanelId == 'SAS.dataViewer'"
+        },
+        {
+          "command": "SAS.reloadAllDataViewers"
+        },
         {
           "command": "SAS.server.quickBrowseReveal",
           "when": "false"

@@ -342,6 +342,18 @@ const useDataViewer = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const handleReset = (event: MessageEvent) => {
+      if (event.data?.command === "reset") {
+        setColumns([]);
+        setTotalRowCount(undefined);
+        setTotalColumnCount(undefined);
+      }
+    };
+    window.addEventListener("message", handleReset);
+    return () => window.removeEventListener("message", handleReset);
+  }, []);
+
   return {
     columnMenu,
     columns,

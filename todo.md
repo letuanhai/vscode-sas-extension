@@ -18,10 +18,16 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.7 add history/bookmarks for quick file browser
     - [-] 6.8 allow configuring root browsing path: no need, just use bookmark
     - [x] 6.9 change item description: for folder show last modified timestamp, for file show file size and last modified timestamp, for the '..' (go back) item, show the number of files and folders in current folder
+    - [ ] 6.10 fix bookmark button/command moving focus to top of item list
 - [-] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section: already added
 - [x] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
 - [x] 10. show output dataset from submission
     - [x] 10.1. show links/buttons that can be used to open the output tables directly
 - [x] 11. show error messages noti when http error code
-- [ ] 12. add command + button to reload SAS tables and command to force reload SAS server file from server (discard unsaved changes)
+- [x] 12. add command + button to reload SAS tables and command to force reload SAS server file from server (discard unsaved changes)
+    - [x] 12.1. `SAS.server.reloadFromServer` / `SAS.content.reloadFromServer`: discard unsaved editor changes, reload file from server; asks confirmation when dirty
+    - [x] 12.2. `SAS.reloadActiveDataViewer`: reload data in the currently active DataViewer panel (also button in editor title bar when DataViewer is focused)
+    - [x] 12.3. `SAS.reloadAllDataViewers`: reload data in all open DataViewer panels (button in library panel toolbar)
+    - [x] 12.4. DataViewer tab stays in place on reload (reuse existing panel, reset via message instead of destroy+recreate)
+    - [x] 12.5. DataViewer bottom padding so last row is not hidden by status bar

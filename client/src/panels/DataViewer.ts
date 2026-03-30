@@ -14,8 +14,11 @@ export type ViewProperties = {
   query?: TableQuery;
 };
 
+export const DATA_VIEWER_VIEW_TYPE = "SAS.dataViewer";
+
 class DataViewer extends WebView {
-  protected viewProperties: ViewProperties = {};
+  public viewProperties: ViewProperties = {};
+  public onBecameActive: (() => void) | undefined;
   public constructor(
     extensionUri: Uri,
     uid: string,
@@ -31,6 +34,10 @@ class DataViewer extends WebView {
     }>,
   ) {
     super(extensionUri, uid);
+  }
+
+  public getViewType(): string {
+    return DATA_VIEWER_VIEW_TYPE;
   }
 
   public l10nMessages() {
@@ -75,6 +82,18 @@ class DataViewer extends WebView {
 
   public body() {
     return `<div class="data-viewer-container" data-title="${this.title}"></div>`;
+  }
+
+  protected onPanelAttached(): void {
+    // Fire immediately — a newly attached panel is always the active one.
+    this.onBecameActive?.();
+    this._disposables.push(
+      this.getPanel().onDidChangeViewState(({ webviewPanel }) => {
+        if (webviewPanel.active) {
+          this.onBecameActive?.();
+        }
+      }),
+    );
   }
 
   public async processMessage(

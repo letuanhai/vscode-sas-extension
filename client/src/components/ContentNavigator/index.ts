@@ -544,6 +544,28 @@ class ContentNavigator implements SubscriptionProvider {
             }),
           ]
         : []),
+      commands.registerCommand(`${SAS}.reloadFromServer`, async () => {
+        const editor = window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
+        const uri = editor.document.uri;
+        if (uri.scheme !== this.sourceType) {
+          return;
+        }
+        if (editor.document.isDirty) {
+          const confirm = await window.showWarningMessage(
+            l10n.t("Discard changes and reload from server?"),
+            { modal: true },
+            l10n.t("Reload"),
+          );
+          if (confirm !== l10n.t("Reload")) {
+            return;
+          }
+        }
+        this.contentDataProvider.invalidateFile(uri);
+        await commands.executeCommand("workbench.action.files.revert");
+      }),
       workspace.onDidChangeConfiguration(
         async (event: ConfigurationChangeEvent) => {
           if (event.affectsConfiguration("SAS.connectionProfiles")) {

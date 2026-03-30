@@ -17,7 +17,7 @@ import * as path from "path";
 
 import { profileConfig } from "../../commands/profile";
 import { Column } from "../../connection/rest/api/compute";
-import DataViewer from "../../panels/DataViewer";
+import DataViewer, { ViewProperties } from "../../panels/DataViewer";
 import TablePropertiesViewer from "../../panels/TablePropertiesViewer";
 import { WebViewManager } from "../../panels/WebviewManager";
 import { SubscriptionProvider } from "../SubscriptionProvider";
@@ -31,13 +31,24 @@ import { LibraryAdapter, LibraryItem, TableData } from "./types";
 
 class LibraryNavigator implements SubscriptionProvider {
   private libraryDataProvider: LibraryDataProvider;
+  private model: LibraryModel;
   private extensionUri: Uri;
   private webviewManager: WebViewManager;
+  private lastActiveDataViewerUid: string | undefined;
+  private openTables = new Map<
+    string,
+    {
+      item: LibraryItem;
+      fetchColumns: () => Column[];
+      fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>;
+    }
+  >();
 
   constructor(context: ExtensionContext) {
     this.extensionUri = context.extensionUri;
+    this.model = new LibraryModel(this.libraryAdapterForConnectionType());
     this.libraryDataProvider = new LibraryDataProvider(
-      new LibraryModel(this.libraryAdapterForConnectionType()),
+      this.model,
       context.extensionUri,
     );
     this.webviewManager = new WebViewManager();
@@ -54,22 +65,27 @@ class LibraryNavigator implements SubscriptionProvider {
           fetchColumns: () => Column[],
           fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>,
         ) => {
-          this.webviewManager.render(
-            new DataViewer(
-              this.extensionUri,
-              item.uid,
-              paginator,
-              fetchColumns,
-              (columnName: string) => {
-                this.displayTableProperties(item, true, columnName);
-              },
-              fetchRowCount,
-            ),
-            item.uid,
+          const existing = this.webviewManager.panels[item.uid] as
+            | DataViewer
+            | undefined;
+          const viewer = this.makeDataViewer(
+            item,
+            paginator,
+            fetchColumns,
+            fetchRowCount,
+            existing?.viewProperties,
           );
+          this.openTables.set(item.uid, { item, fetchColumns, fetchRowCount });
+          this.webviewManager.render(viewer, item.uid, !!existing);
         },
       ),
       commands.registerCommand("SAS.refreshLibraries", () => this.refresh()),
+      commands.registerCommand("SAS.reloadActiveDataViewer", () =>
+        this.reloadActiveDataViewer(),
+      ),
+      commands.registerCommand("SAS.reloadAllDataViewers", () =>
+        this.reloadAllDataViewers(),
+      ),
       commands.registerCommand("SAS.deleteTable", async (item: LibraryItem) => {
         const selectedItems = treeViewSelections(
           this.libraryDataProvider.treeView,
@@ -150,6 +166,82 @@ class LibraryNavigator implements SubscriptionProvider {
 
   public async refresh(): Promise<void> {
     this.libraryDataProvider.useAdapter(this.libraryAdapterForConnectionType());
+  }
+
+  private reloadActiveDataViewer(): void {
+    // Try the panel VS Code currently considers active
+    for (const [uid, entry] of this.openTables) {
+      const panel = this.webviewManager.panels[uid] as DataViewer | undefined;
+      if (panel?.getPanel().active) {
+        this.reloadDataViewer(uid, entry);
+        return;
+      }
+    }
+    // Fall back to the most recently active DataViewer (e.g. command palette was open)
+    if (this.lastActiveDataViewerUid) {
+      const entry = this.openTables.get(this.lastActiveDataViewerUid);
+      if (entry && this.webviewManager.panels[this.lastActiveDataViewerUid]) {
+        this.reloadDataViewer(this.lastActiveDataViewerUid, entry);
+      }
+    }
+  }
+
+  private reloadAllDataViewers(): void {
+    for (const [uid, entry] of this.openTables) {
+      if (this.webviewManager.panels[uid]) {
+        this.reloadDataViewer(uid, entry);
+      }
+    }
+  }
+
+  private reloadDataViewer(
+    uid: string,
+    entry: {
+      item: LibraryItem;
+      fetchColumns: () => Column[];
+      fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>;
+    },
+  ): void {
+    const existing = this.webviewManager.panels[uid] as DataViewer | undefined;
+    if (!existing) {
+      this.openTables.delete(uid);
+      return;
+    }
+    const { item, fetchColumns, fetchRowCount } = entry;
+    const viewer = this.makeDataViewer(
+      item,
+      this.model.getTableResultSet(item),
+      fetchColumns,
+      fetchRowCount,
+      existing.viewProperties,
+    );
+    this.webviewManager.render(viewer, uid, true);
+  }
+
+  private makeDataViewer(
+    item: LibraryItem,
+    paginator: PaginatedResultSet<{ data: TableData; error?: Error }>,
+    fetchColumns: () => Column[],
+    fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>,
+    viewProperties?: ViewProperties,
+  ): DataViewer {
+    const viewer = new DataViewer(
+      this.extensionUri,
+      item.uid,
+      paginator,
+      fetchColumns,
+      (columnName: string) => {
+        this.displayTableProperties(item, true, columnName);
+      },
+      fetchRowCount,
+    );
+    if (viewProperties) {
+      viewer.viewProperties = viewProperties;
+    }
+    viewer.onBecameActive = () => {
+      this.lastActiveDataViewerUid = item.uid;
+    };
+    return viewer;
   }
 
   private async displayTableProperties(

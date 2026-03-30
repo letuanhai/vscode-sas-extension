@@ -8,17 +8,30 @@ export class WebViewManager {
   public render(webview: WebView, uid: string, forceReRender: boolean = false) {
     if (this.panels[uid]) {
       if (forceReRender) {
-        this.panels[uid] = webview
-          .withPanel(this.panels[uid].getPanel())
-          .render();
+        // Keep the existing VS Code panel to preserve tab position.
+        // Detach old handlers, attach new ones, then tell the running React app
+        // to reset its state.  Replacing panel.webview.html is intentionally
+        // skipped because retainContextWhenHidden prevents it from resetting
+        // the JS context on a live tab.
+        const existing = this.panels[uid];
+        const existingPanel = existing.getPanel();
+        existing.detach();
+        webview.onDispose = () => delete this.panels[uid];
+        this.panels[uid] = webview.withPanel(existingPanel);
+        existingPanel.webview.postMessage({ command: "reset" });
+        return;
+      } else {
+        this.panels[uid].display();
+        return;
       }
-      this.panels[uid].display();
-      return;
     }
 
-    const panel = window.createWebviewPanel("webView", uid, ViewColumn.One, {
-      enableScripts: true,
-    });
+    const panel = window.createWebviewPanel(
+      webview.getViewType(),
+      uid,
+      ViewColumn.One,
+      { enableScripts: true, retainContextWhenHidden: true },
+    );
 
     webview.onDispose = () => delete this.panels[uid];
     this.panels[uid] = webview.withPanel(panel).render();
@@ -27,7 +40,7 @@ export class WebViewManager {
 
 export abstract class WebView {
   protected panel: WebviewPanel;
-  private _disposables: Disposable[] = [];
+  protected readonly _disposables: Disposable[] = [];
   private _onDispose: () => void;
 
   public constructor(
@@ -37,6 +50,10 @@ export abstract class WebView {
 
   set onDispose(disposeCallback: () => void) {
     this._onDispose = disposeCallback;
+  }
+
+  public getViewType(): string {
+    return "webView";
   }
 
   abstract body(): string;
@@ -94,10 +111,25 @@ export abstract class WebView {
 
   public withPanel(webviewPanel: WebviewPanel): WebView {
     this.panel = webviewPanel;
-    this.panel.onDidDispose(() => this.dispose(), null, this._disposables);
-    this.panel.webview.onDidReceiveMessage(this.processMessage.bind(this));
-
+    this._disposables.push(
+      this.panel.onDidDispose(() => this.dispose()),
+      this.panel.webview.onDidReceiveMessage(this.processMessage.bind(this)),
+    );
+    this.onPanelAttached();
     return this;
+  }
+
+  // Override in subclasses to react when a panel is (re-)attached.
+  // Subclasses should push any additional listeners onto this._disposables.
+  protected onPanelAttached(): void {}
+
+  // Dispose all subscriptions without closing the panel itself.
+  // Used before forceReRender to cleanly hand the panel to a new WebView instance.
+  public detach(): void {
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      disposable?.dispose();
+    }
   }
 
   public getPanel() {
@@ -106,12 +138,7 @@ export abstract class WebView {
 
   public dispose() {
     this.panel.dispose();
-    while (this._disposables.length) {
-      const disposable = this._disposables.pop();
-      if (disposable) {
-        disposable.dispose();
-      }
-    }
+    this.detach();
     this._onDispose && this._onDispose();
   }
 
