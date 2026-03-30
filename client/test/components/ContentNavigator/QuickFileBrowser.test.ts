@@ -2617,4 +2617,205 @@ describe("QuickFileBrowser (integration)", function () {
       sb.restore();
     });
   });
+
+  // -----------------------------------------------------------------------
+  // item descriptions (task 6.9)
+  // -----------------------------------------------------------------------
+  describe("item descriptions (task 6.9)", function () {
+
+    function makeFolderWithMeta(
+      name: string,
+      uri: string,
+      modifiedTimeStamp: number,
+    ): ContentItem {
+      return {
+        ...makeFolder(name, uri),
+        modifiedTimeStamp,
+      };
+    }
+
+    function makeFileWithMeta(
+      name: string,
+      uri: string,
+      modifiedTimeStamp: number,
+      size: number,
+    ): ContentItem {
+      return {
+        ...makeFile(name, uri),
+        modifiedTimeStamp,
+        fileStat: {
+          mtime: modifiedTimeStamp,
+          ctime: 0,
+          size,
+          type: 2, // FileType.File = 2
+        },
+      };
+    }
+
+    // -----------------------------------------------------------------
+    // 6.9.1. Folder items show timestamp description
+    // -----------------------------------------------------------------
+    it("6.9.1: folder items show a timestamp description containing the year", async () => {
+      const ts = new Date(2024, 0, 15).getTime();
+      const children = [makeFolderWithMeta("docs", "/srv/docs", ts)];
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/srv", children]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/srv");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const folderItem = activeQuickPick!.items.find((i) => i.label === "docs");
+      assert.isDefined(folderItem, "should find folder item 'docs'");
+
+      const desc = (folderItem as QuickPickItem).detail;
+      assert.isString(desc, "detail should be a string");
+      assert.isAbove((desc as string).length, 0, "detail should be non-empty");
+      assert.include(desc, "2024", "detail should contain the year 2024");
+      // Should NOT be the old URI-based description
+      assert.notEqual(desc, "/srv/docs", "detail should not be the folder URI");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------
+    // 6.9.2. File items show "size · timestamp" description
+    // -----------------------------------------------------------------
+    it("6.9.2: file items show size and timestamp joined by ' · '", async () => {
+      const ts = new Date(2024, 5, 20).getTime();
+      const children = [makeFileWithMeta("report.csv", "/data/report.csv", ts, 2048)];
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/data", children]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/data");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const fileItem = activeQuickPick!.items.find((i) => i.label === "report.csv");
+      assert.isDefined(fileItem, "should find file item 'report.csv'");
+
+      const desc = (fileItem as QuickPickItem).detail;
+      assert.isString(desc, "detail should be a string");
+      assert.include(desc, "2.0 KB", "detail should contain formatted size '2.0 KB'");
+      assert.include(desc, "2024", "detail should contain the year 2024");
+      assert.include(desc, "·", "detail should contain the separator '·'");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------
+    // 6.9.3. File items with no size or timestamp show falsy description
+    // -----------------------------------------------------------------
+    it("6.9.3: file items with no size and no timestamp have falsy description", async () => {
+      const children = [makeFile("empty.sas", "/ws/empty.sas")];
+      // modifiedTimeStamp defaults to 0, no fileStat
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/ws", children]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/ws");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const fileItem = activeQuickPick!.items.find((i) => i.label === "empty.sas");
+      assert.isDefined(fileItem, "should find file item 'empty.sas'");
+
+      assert.isUndefined((fileItem as QuickPickItem).detail, "detail should be undefined when no size and no timestamp");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------
+    // 6.9.4. '..' parent item shows folder/file counts
+    // -----------------------------------------------------------------
+    it("6.9.4: '..' parent item description shows folder and file counts", async () => {
+      const children = [
+        makeFolder("alpha", "/home/alpha"),
+        makeFolder("beta", "/home/beta"),
+        makeFile("a.sas", "/home/a.sas"),
+        makeFile("b.sas", "/home/b.sas"),
+        makeFile("c.sas", "/home/c.sas"),
+      ];
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/home", children]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/home");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const dotdotItem = activeQuickPick!.items.find((i) => i.label === "..");
+      assert.isDefined(dotdotItem, "'..' item should be present");
+
+      const desc = (dotdotItem as QuickPickItem).detail ?? "";
+      assert.include(desc, "2 folder", "detail should contain '2 folder'");
+      assert.include(desc, "3 file", "detail should contain '3 file'");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------
+    // 6.9.5. '..' parent item with only folders shows singular "folder"
+    // -----------------------------------------------------------------
+    it("6.9.5: '..' parent item with 1 folder and 0 files shows singular 'folder'", async () => {
+      const children = [makeFolder("onlyone", "/home/onlyone")];
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/home", children]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/home");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const dotdotItem = activeQuickPick!.items.find((i) => i.label === "..");
+      assert.isDefined(dotdotItem, "'..' item should be present");
+
+      const desc = (dotdotItem as QuickPickItem).detail ?? "";
+      assert.include(desc, "1 folder", "detail should contain singular '1 folder'");
+      assert.notInclude(desc, "file", "detail should not mention files when there are none");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+
+    // -----------------------------------------------------------------
+    // 6.9.6. '..' parent item for empty directory shows "empty"
+    // -----------------------------------------------------------------
+    it("6.9.6: '..' parent item for empty directory shows description 'empty'", async () => {
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([["/home", []]]),
+      );
+      const model = new ContentModel(adapter);
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/home");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      const dotdotItem = activeQuickPick!.items.find((i) => i.label === "..");
+      assert.isDefined(dotdotItem, "'..' item should be present");
+
+      const desc = (dotdotItem as QuickPickItem).detail;
+      assert.equal(desc, "empty", "detail should be 'empty' for an empty directory");
+
+      activeQuickPick!.hide();
+      await showPromise;
+    });
+  });
 });

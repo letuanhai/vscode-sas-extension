@@ -125,6 +125,24 @@ export function sortContentItems(items: ContentItem[]): ContentItem[] {
   return [...folders, ...files];
 }
 
+/** Format a byte count into a human-readable string. Returns "" for 0 or negative. */
+export function formatFileSize(bytes: number): string {
+  if (bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/** Format a Unix millisecond timestamp to "YYYY-MM-DD HH:MM". Returns "" for 0. */
+export function formatTimestamp(ts: number): string {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const date = d.toLocaleDateString("en-CA"); // "YYYY-MM-DD"
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); // "HH:MM"
+  return `${date} ${time}`;
+}
+
 // ---------------------------------------------------------------------------
 // QuickPick item types
 //
@@ -139,14 +157,13 @@ interface ParentItem {
   kind: "parent";
   label: string;
   iconPath?: ThemeIcon;
-  description?: string;
+  detail?: string;
 }
 
 interface FolderItem {
   kind: "folder";
   label: string;
   iconPath: ThemeIcon;
-  description: string;
   detail?: string;
   item: ContentItem;
   buttons: readonly QuickInputButton[];
@@ -159,7 +176,8 @@ interface FileItem {
   // { light, dark } iconPath: explicit override (e.g. for .sas7bdat).
   iconPath: ThemeIcon | { light: Uri; dark: Uri };
   resourceUri: Uri;
-  description?: string;
+  description: string; // always "" — suppresses the auto-generated path from resourceUri
+  detail?: string;
   item: ContentItem;
   buttons: readonly QuickInputButton[];
 }
@@ -570,16 +588,23 @@ export default class QuickFileBrowser {
 
     const sorted = sortContentItems(children);
 
+    const folderCount = sorted.filter(isFolder).length;
+    const fileCount = sorted.filter((i) => !isFolder(i)).length;
+    const parts: string[] = [];
+    if (folderCount > 0) parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`);
+    if (fileCount > 0) parts.push(`${fileCount} ${fileCount === 1 ? "file" : "files"}`);
+    const parentDescription = parts.join(", ") || "empty";
+
     const parentItems: ParentItem[] =
       stack.length > 0
-        ? [{ kind: "parent", label: "..", iconPath: new ThemeIcon("arrow-left") }]
+        ? [{ kind: "parent", label: "..", iconPath: new ThemeIcon("arrow-left"), detail: parentDescription }]
         : [];
 
     const folderItems: FolderItem[] = sorted.filter(isFolder).map((item) => ({
       kind: "folder" as const,
       label: item.name,
       iconPath: new ThemeIcon("folder"),
-      description: item.uri,
+      detail: formatTimestamp(item.modifiedTimeStamp) || undefined,
       item,
       buttons: [
         store?.isBookmarked(item.uri)
@@ -591,19 +616,26 @@ export default class QuickFileBrowser {
 
     const fileItems: FileItem[] = sorted
       .filter((item) => !isFolder(item))
-      .map((item) => ({
-        kind: "file" as const,
-        label: item.name,
-        iconPath: this.iconPathForFile(item.name),
-        resourceUri: Uri.file(item.name),
-        item,
-        buttons: [
-          store?.isBookmarked(item.uri)
-            ? BOOKMARK_REMOVE_BUTTON
-            : BOOKMARK_ADD_BUTTON,
-          REVEAL_BUTTON,
-        ],
-      }));
+      .map((item) => {
+        const sizePart = formatFileSize(item.fileStat?.size ?? 0);
+        const timePart = formatTimestamp(item.modifiedTimeStamp);
+        const description = [sizePart, timePart].filter(Boolean).join(" · ");
+        return {
+          kind: "file" as const,
+          label: item.name,
+          iconPath: this.iconPathForFile(item.name),
+          resourceUri: Uri.file(item.name),
+          description: "",
+          detail: description || undefined,
+          item,
+          buttons: [
+            store?.isBookmarked(item.uri)
+              ? BOOKMARK_REMOVE_BUTTON
+              : BOOKMARK_ADD_BUTTON,
+            REVEAL_BUTTON,
+          ],
+        };
+      });
 
     // Only add history/bookmarks at root level
     const suffixItems: BrowserQuickPickItem[] = [];

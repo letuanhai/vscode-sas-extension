@@ -4,6 +4,8 @@ import { expect } from "chai";
 
 import {
   deriveParentPath,
+  formatFileSize,
+  formatTimestamp,
   isFolder,
   sortContentItems,
   syntheticFolder,
@@ -232,5 +234,63 @@ describe("deriveParentPath", () => {
 
   it('returns "/home/sasdemo" for "/home/sasdemo/projects"', () => {
     expect(deriveParentPath("/home/sasdemo/projects")).to.equal("/home/sasdemo");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatFileSize
+// ---------------------------------------------------------------------------
+describe("formatFileSize", () => {
+  it("returns empty string for 0 bytes", () => {
+    expect(formatFileSize(0)).to.equal("");
+  });
+
+  it("returns empty string for negative bytes", () => {
+    expect(formatFileSize(-1)).to.equal("");
+  });
+
+  it("returns '1 B' for 1 byte", () => {
+    expect(formatFileSize(1)).to.equal("1 B");
+  });
+
+  it("returns '1023 B' for 1023 bytes", () => {
+    expect(formatFileSize(1023)).to.equal("1023 B");
+  });
+
+  it("returns '1.0 KB' for 1024 bytes", () => {
+    expect(formatFileSize(1024)).to.equal("1.0 KB");
+  });
+
+  it("returns '1.5 KB' for 1536 bytes", () => {
+    expect(formatFileSize(1536)).to.equal("1.5 KB");
+  });
+
+  it("returns '1.0 MB' for 1048576 bytes", () => {
+    expect(formatFileSize(1048576)).to.equal("1.0 MB");
+  });
+
+  it("returns '1.0 GB' for 1073741824 bytes", () => {
+    expect(formatFileSize(1073741824)).to.equal("1.0 GB");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatTimestamp
+// ---------------------------------------------------------------------------
+describe("formatTimestamp", () => {
+  it("returns empty string for 0", () => {
+    expect(formatTimestamp(0)).to.equal("");
+  });
+
+  it("returns YYYY-MM-DD HH:MM format for a local timestamp", () => {
+    const ts = new Date(2024, 0, 15, 9, 5).getTime(); // 2024-01-15 09:05 local
+    const result = formatTimestamp(ts);
+    expect(result).to.equal("2024-01-15 09:05");
+  });
+
+  it("returns a string matching YYYY-MM-DD HH:MM pattern", () => {
+    const ts = Date.now();
+    const result = formatTimestamp(ts);
+    expect(result).to.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
 });
