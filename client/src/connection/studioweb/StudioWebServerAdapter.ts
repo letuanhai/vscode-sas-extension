@@ -23,6 +23,7 @@ import {
 } from "../../components/ContentNavigator/utils";
 import { ProfileWithFileRootOptions } from "../../components/profile";
 import { ensureCredentials } from "./index";
+import { mapVscodeEncodingToSas } from "./encodingMap";
 import { getAxios, getCredentials, getEncodeDoubleSlashes, getServerEncoding } from "./state";
 
 /**
@@ -361,6 +362,34 @@ class StudioWebServerAdapter implements ContentAdapter {
     }
   }
 
+  public async getContentOfItemRaw(item: ContentItem): Promise<Uint8Array> {
+    if (!(await ensureCredentials())) {
+      return new Uint8Array();
+    }
+    const axios = getAxios();
+    const creds = getCredentials();
+    if (!axios || !creds) {
+      return new Uint8Array();
+    }
+
+    try {
+      const response = await axios.get(
+        workspaceUrl(creds.sessionId, item.uri),
+        { responseType: "arraybuffer" },
+      );
+      return new Uint8Array(response.data);
+    } catch (error) {
+      console.error("StudioWebServerAdapter.getContentOfItemRaw error:", error);
+      return new Uint8Array();
+    }
+  }
+
+  public async getContentOfUriRaw(uri: Uri): Promise<Uint8Array> {
+    const path = uri.path;
+    const item = await this.getItemAtPath(path);
+    return await this.getContentOfItemRaw(item);
+  }
+
   public async getContentOfUri(uri: Uri): Promise<string> {
     // vscUri for SAS Server files encodes the full server path as uri.path
     const path = uri.path;
@@ -373,7 +402,11 @@ class StudioWebServerAdapter implements ContentAdapter {
     return this.getItemAtPath(path);
   }
 
-  public async updateContentOfItem(uri: Uri, content: string): Promise<void> {
+  public async updateContentOfItem(
+    uri: Uri,
+    content: string,
+    encoding?: string,
+  ): Promise<void> {
     if (!(await ensureCredentials())) {
       return;
     }
@@ -384,11 +417,13 @@ class StudioWebServerAdapter implements ContentAdapter {
     }
 
     const path = uri.path;
-    const encoding = getServerEncoding();
+    const sasEncoding = encoding
+      ? mapVscodeEncodingToSas(encoding)
+      : getServerEncoding();
     // The server expects UTF-8 body. When server encoding is not UTF-8,
     // the ?encoding param tells it to transcode UTF-8 → the target encoding.
     const encodingParam =
-      encoding.toUpperCase() === "UTF-8" ? {} : { encoding };
+      sasEncoding.toUpperCase() === "UTF-8" ? {} : { encoding: sasEncoding };
     // Use double-slash pattern matching getContentOfItem (~~ds~~ returns 404)
     await axios.post(
       workspaceUrl(creds.sessionId, path),

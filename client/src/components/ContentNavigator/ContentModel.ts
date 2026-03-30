@@ -146,8 +146,21 @@ export class ContentModel {
     return await this.contentAdapter.renameItem(item, name);
   }
 
-  public async saveContentToUri(uri: Uri, content: string): Promise<void> {
-    await this.contentAdapter.updateContentOfItem(uri, content);
+  public async getContentByUriRaw(
+    uri: Uri,
+  ): Promise<Uint8Array | undefined> {
+    if (this.contentAdapter.getContentOfUriRaw) {
+      return await this.contentAdapter.getContentOfUriRaw(uri);
+    }
+    return undefined;
+  }
+
+  public async saveContentToUri(
+    uri: Uri,
+    content: string,
+    encoding?: string,
+  ): Promise<void> {
+    await this.contentAdapter.updateContentOfItem(uri, content, encoding);
   }
 
   public async getUri(item: ContentItem, readOnly: boolean): Promise<Uri> {

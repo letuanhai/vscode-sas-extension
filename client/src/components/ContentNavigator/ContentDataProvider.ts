@@ -324,6 +324,10 @@ class ContentDataProvider
   }
 
   public async readFile(uri: Uri): Promise<Uint8Array> {
+    const rawBytes = await this.model.getContentByUriRaw(uri);
+    if (rawBytes) {
+      return rawBytes;
+    }
     return await this.model
       .getContentByUri(uri)
       .then((content) => new TextEncoder().encode(content));
@@ -419,6 +423,34 @@ class ContentDataProvider
   }
 
   public writeFile(uri: Uri, content: Uint8Array): void | Promise<void> {
+    const doc = workspace.textDocuments.find(
+      (d) => d.uri.toString() === uri.toString(),
+    );
+    // TextDocument.encoding is available since VS Code 1.100 (April 2025)
+    const encoding = (doc as any)?.encoding as string | undefined;
+
+    if (encoding && encoding !== "utf8") {
+      // workspace.decode is also available since VS Code 1.100
+      const decodeFn = (workspace as any).decode as
+        | ((
+            content: Uint8Array,
+            options: { encoding: string },
+          ) => Thenable<string>)
+        | undefined;
+      if (decodeFn) {
+        return decodeFn
+          .call(workspace, content, { encoding })
+          .then((text: string) =>
+            this.model.saveContentToUri(uri, text, encoding),
+          )
+          .catch(() =>
+            this.model.saveContentToUri(
+              uri,
+              new TextDecoder().decode(content),
+            ),
+          );
+      }
+    }
     return this.model.saveContentToUri(uri, new TextDecoder().decode(content));
   }
 

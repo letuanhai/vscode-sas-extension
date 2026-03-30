@@ -101,7 +101,9 @@ export interface ContentAdapter {
     newName: string,
   ) => Promise<ContentItem | undefined>;
   restoreItem?: (item: ContentItem) => Promise<boolean>;
-  updateContentOfItem(uri: Uri, content: string): Promise<void>;
+  getContentOfItemRaw?(item: ContentItem): Promise<Uint8Array>;
+  getContentOfUriRaw?(uri: Uri): Promise<Uint8Array>;
+  updateContentOfItem(uri: Uri, content: string, encoding?: string): Promise<void>;
 }
 
 export enum ContentSourceType {
