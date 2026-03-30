@@ -3,8 +3,10 @@
 - [x] 3. Drag-and-drop confirmation message
 - [x] 4. Support opening SAS dataset (.sas7bdat) file in data view
 - [ ] 5. Support read/write with server encoding (not UTF-8)
-    - [ ] 5.1. ready raw bytes
-    - [ ] 5.2. write raw bytes
+    Approach: delegate encoding to VS Code's built-in encoding system so the status bar matches server reality.
+    Users configure per-language encoding in VS Code settings (e.g., `"[sas]": { "files.encoding": "iso88591" }`).
+    - [ ] 5.1. Read: return raw bytes from server (stop decoding in adapter), let VS Code decode using its encoding config
+    - [ ] 5.2. Write: VS Code passes bytes in the document's encoding to `writeFile`. Get encoding from `TextDocument.encoding`, decode to string, send as UTF-8 body with `?encoding=<server encoding name>` param so server transcodes back. Requires a VS Code↔SAS encoding name mapper (e.g., `iso88591` → `ISO-8859-1`).
 - [x] 6. Quick File Browser — `SAS.server.quickBrowse` command; `Shift+Enter` reveals highlighted item in SAS sidebar file tree; `$(list-tree)` per-item button does the same inline
 A keyboard-friendly file browser using `window.createQuickPick()` that composes the existing `ContentModel`/`ContentAdapter` without modifying tree view code. Provides fuzzy filtering, absolute path jumping, and fast drill-down navigation.
     - [x] 6.1 fix reveal file functions
