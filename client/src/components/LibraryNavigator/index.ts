@@ -65,6 +65,7 @@ class LibraryNavigator implements SubscriptionProvider {
           fetchColumns: () => Column[],
           fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>,
         ) => {
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const existing = this.webviewManager.panels[item.uid] as
             | DataViewer
             | undefined;
@@ -171,6 +172,7 @@ class LibraryNavigator implements SubscriptionProvider {
   private reloadActiveDataViewer(): void {
     // Try the panel VS Code currently considers active
     for (const [uid, entry] of this.openTables) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
       const panel = this.webviewManager.panels[uid] as DataViewer | undefined;
       if (panel?.getPanel().active) {
         this.reloadDataViewer(uid, entry);
@@ -202,6 +204,7 @@ class LibraryNavigator implements SubscriptionProvider {
       fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>;
     },
   ): void {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
     const existing = this.webviewManager.panels[uid] as DataViewer | undefined;
     if (!existing) {
       this.openTables.delete(uid);

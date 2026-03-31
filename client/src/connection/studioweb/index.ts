@@ -9,7 +9,6 @@ import { ConnectionType } from "../../components/profile";
 import { profileConfig } from "../../commands/profile";
 import { Session } from "../session";
 import {
-  StudioWebCachedState,
   clearActiveCredentials,
   getAxios,
   getCachedState,
@@ -102,7 +101,7 @@ async function pingSession(
       Accept: "*/*",
     };
     if (cookieString) {
-      headers["Cookie"] = cookieString;
+      headers.Cookie = cookieString;
     }
     await axios.get(`${endpoint}/sasexec/sessions/${sessionId}/ping`, {
       headers,
@@ -134,17 +133,17 @@ async function createSessionOnServer(
     "Content-Type": "application/json",
   };
   if (cookieString) {
-    headers["Cookie"] = cookieString;
+    headers.Cookie = cookieString;
   }
   const { data } = await axios.post(
     `${endpoint}/sasexec/sessions`,
     {},
     { headers, timeout: 30000 },
   );
-  if (!data?.id) {
+  if (!data?.id || typeof data.id !== "string") {
     throw new Error(l10n.t("Server returned no session ID."));
   }
-  return data.id as string;
+  return data.id;
 }
 
 /**

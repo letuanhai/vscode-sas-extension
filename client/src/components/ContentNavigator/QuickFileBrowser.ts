@@ -104,7 +104,7 @@ export function deriveParentPath(uri: string): string | undefined {
   const normalized =
     uri.length > 1 && uri.endsWith("/") ? uri.slice(0, -1) : uri;
   const lastSlash = normalized.lastIndexOf("/");
-  if (lastSlash <= 0) return undefined;
+  if (lastSlash <= 0) { return undefined; }
   return normalized.slice(0, lastSlash);
 }
 
@@ -127,16 +127,16 @@ export function sortContentItems(items: ContentItem[]): ContentItem[] {
 
 /** Format a byte count into a human-readable string. Returns "" for 0 or negative. */
 export function formatFileSize(bytes: number): string {
-  if (bytes <= 0) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes <= 0) { return ""; }
+  if (bytes < 1024) { return `${bytes} B`; }
+  if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
+  if (bytes < 1024 * 1024 * 1024) { return `${(bytes / (1024 * 1024)).toFixed(1)} MB`; }
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 /** Format a Unix millisecond timestamp to "YYYY-MM-DD HH:MM". Returns "" for 0. */
 export function formatTimestamp(ts: number): string {
-  if (!ts) return "";
+  if (!ts) { return ""; }
   const d = new Date(ts);
   const date = d.toLocaleDateString("en-CA"); // "YYYY-MM-DD"
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); // "HH:MM"
@@ -258,9 +258,9 @@ interface BrowserQuickPick {
 
 /** Returns a stable key for preserving active-item focus across item list refreshes. */
 export function itemKey(item: BrowserQuickPickItem): string | undefined {
-  if (item.kind === "folder" || item.kind === "file") return item.item.uri;
-  if (item.kind === "history" || item.kind === "bookmark") return item.storedItem.uri;
-  if (item.kind === "parent") return "__parent__";
+  if (item.kind === "folder" || item.kind === "file") { return item.item.uri; }
+  if (item.kind === "history" || item.kind === "bookmark") { return item.storedItem.uri; }
+  if (item.kind === "parent") { return "__parent__"; }
   return undefined;
 }
 
@@ -600,8 +600,8 @@ export default class QuickFileBrowser {
     const folderCount = sorted.filter(isFolder).length;
     const fileCount = sorted.filter((i) => !isFolder(i)).length;
     const parts: string[] = [];
-    if (folderCount > 0) parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`);
-    if (fileCount > 0) parts.push(`${fileCount} ${fileCount === 1 ? "file" : "files"}`);
+    if (folderCount > 0) { parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`); }
+    if (fileCount > 0) { parts.push(`${fileCount} ${fileCount === 1 ? "file" : "files"}`); }
     const parentDescription = parts.join(", ") || "empty";
 
     const parentItems: ParentItem[] =
@@ -653,10 +653,13 @@ export default class QuickFileBrowser {
       const history = store.getHistory();
 
       if (bookmarks.length > 0) {
-        suffixItems.push({
-          kind: QuickPickItemKind.Separator,
-          label: "Bookmarks",
-        } as unknown as BrowserQuickPickItem);
+        suffixItems.push(
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          {
+            kind: QuickPickItemKind.Separator,
+            label: "Bookmarks",
+          } as unknown as BrowserQuickPickItem,
+        );
         for (const b of bookmarks) {
           suffixItems.push({
             kind: "bookmark",
@@ -671,10 +674,13 @@ export default class QuickFileBrowser {
       }
 
       if (history.length > 0) {
-        suffixItems.push({
-          kind: QuickPickItemKind.Separator,
-          label: "Recent",
-        } as unknown as BrowserQuickPickItem);
+        suffixItems.push(
+          // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+          {
+            kind: QuickPickItemKind.Separator,
+            label: "Recent",
+          } as unknown as BrowserQuickPickItem,
+        );
         for (const h of history) {
           suffixItems.push({
             kind: "history",
@@ -693,6 +699,7 @@ export default class QuickFileBrowser {
     const serverFilesSep: BrowserQuickPickItem[] =
       suffixItems.length > 0
         ? ([
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             {
               kind: QuickPickItemKind.Separator,
               label: "Server Files",

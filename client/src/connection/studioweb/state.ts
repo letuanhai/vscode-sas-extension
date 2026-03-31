@@ -149,7 +149,7 @@ export function setCredentials(creds: StudioWebCredentials | undefined): void {
       "RemoteSession-Id": creds.sessionId,
     };
     if (creds.cookieString) {
-      headers["Cookie"] = creds.cookieString;
+      headers.Cookie = creds.cookieString;
     }
 
     _axios = axios.create({

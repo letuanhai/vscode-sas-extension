@@ -15,6 +15,7 @@ npm run test         # compile + typecheck + run all tests (server + harness + i
 npm run test-client  # @vscode/test-cli integration tests (downloads VS Code, runs in extension host)
 npm run test-harness # Mocha direct-import tests (no VS Code, fast)
 npm run test-server  # Mocha + ts-node for server only
+npx @vscode/vsce package  # package extension as .vsix (runs lint + compile first)
 ```
 
 Type-check only (faster than full test):

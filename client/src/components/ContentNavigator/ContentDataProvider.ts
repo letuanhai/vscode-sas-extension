@@ -427,10 +427,12 @@ class ContentDataProvider
       (d) => d.uri.toString() === uri.toString(),
     );
     // TextDocument.encoding is available since VS Code 1.100 (April 2025)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
     const encoding = (doc as any)?.encoding as string | undefined;
 
     if (encoding && encoding !== "utf8") {
       // workspace.decode is also available since VS Code 1.100
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
       const decodeFn = (workspace as any).decode as
         | ((
             content: Uint8Array,
