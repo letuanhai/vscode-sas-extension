@@ -548,6 +548,20 @@ class ContentNavigator implements SubscriptionProvider {
             commands.registerCommand(`${SAS}.quickBrowseHome`, () => {
               goHome();
             }),
+            commands.registerCommand(
+              "SAS.server.copyServerPath",
+              async () => {
+                const editor = window.activeTextEditor;
+                if (!editor) {
+                  return;
+                }
+                const { uri } = editor.document;
+                if (uri.scheme !== "sasServer") {
+                  return;
+                }
+                await env.clipboard.writeText(uri.path);
+              },
+            ),
           ]
         : []),
       commands.registerCommand(`${SAS}.reloadFromServer`, async () => {
@@ -572,6 +586,7 @@ class ContentNavigator implements SubscriptionProvider {
         this.contentDataProvider.invalidateFile(uri);
         await commands.executeCommand("workbench.action.files.revert");
       }),
+
       workspace.onDidChangeConfiguration(
         async (event: ConfigurationChangeEvent) => {
           if (event.affectsConfiguration("SAS.connectionProfiles")) {

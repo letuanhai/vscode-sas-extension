@@ -885,12 +885,17 @@
       },
       {
         "command": "SAS.server.reloadFromServer",
-        "title": "Reload from Server",
+        "title": "Reload from SAS Server",
         "category": "SAS"
       },
       {
         "command": "SAS.content.reloadFromServer",
         "title": "Reload from Server",
+        "category": "SAS"
+      },
+      {
+        "command": "SAS.server.copyServerPath",
+        "title": "%commands.SAS.copyServerPath%",
         "category": "SAS"
       },
       {
@@ -917,6 +922,11 @@
       {
         "command": "SAS.server.quickBrowseBookmarkItem",
         "title": "Quick Browser: Toggle Bookmark",
+        "category": "SAS"
+      },
+      {
+        "command": "SAS.server.quickBrowseHome",
+        "title": "%commands.SAS.server.quickBrowseHome%",
         "category": "SAS"
       },
       {
@@ -1010,6 +1020,12 @@
       {
         "key": "alt+b",
         "command": "SAS.server.quickBrowseBookmarkItem",
+        "when": "SAS.quickBrowseOpen && inQuickOpen"
+      },
+      {
+        "command": "SAS.server.quickBrowseHome",
+        "key": "alt+h",
+        "mac": "alt+h",
         "when": "SAS.quickBrowseOpen && inQuickOpen"
       },
       {
@@ -1306,6 +1322,11 @@
           "group": "1_modification"
         },
         {
+          "command": "SAS.server.copyServerPath",
+          "when": "resourceScheme == sasServer",
+          "group": "1_modification"
+        },
+        {
           "command": "SAS.content.reloadFromServer",
           "when": "resourceScheme == sasContent",
           "group": "1_modification"
@@ -1376,6 +1397,10 @@
         },
         {
           "command": "SAS.server.quickBrowseBookmarkItem",
+          "when": "false"
+        },
+        {
+          "command": "SAS.server.quickBrowseHome",
           "when": "false"
         },
         {

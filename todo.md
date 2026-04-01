@@ -21,12 +21,7 @@ A keyboard-friendly file browser using `window.createQuickPick()` that composes 
     - [x] 6.10 fix bookmark button/command moving focus to top of item list
     - [x] 6.11 fix reveal: when loading absolute path items, need to perform a folder navigation before reveal work
     - [x] 6.12 quick browser state persistence and active editor entry
-        - **State persistence**: Reopening the quick browser resumes the last browsing state (current folder, folder items, focused item) instead of resetting to the initial list. State resets when the SAS connection session resets. Filter text is NOT restored (always starts empty).
-        - **Active editor entry**: When at the initial/root list, if the active editor is a SAS server file, show it as the first item above "Server Files" with a file icon derived from its name. Label = filename, description = full server path. Pressing Enter navigates to the file's parent folder with the filename pre-filled in the filter (so the user sees the file in context, rather than re-opening an already-open file).
-        - **Home button**: A $(home) button appears in the QuickPick title bar when not at the initial list. Clicking it returns to the initial list (Server Files, Bookmarks, History) and clears saved state. Esc always closes the popup (standard VS Code behaviour).
-        - **Reopening with explicit path argument**: If `show()` is called with an explicit folder/path argument, ignore saved state and navigate to that path.
-        - **Edge cases**: If a saved folder is no longer accessible, fall back to the initial list. If the saved focused item no longer exists, focus the first item.
-    - [ ] 6.13 'Copy Path' item in editor tab title context menu should always use "/" as path separators (not changing to "\" on Windows), or if it is not possible then add an item call Copy SAS Server Path to the context menu
+    - [x] 6.13 Add an item call Copy SAS Server Path to the tab title context menu of SAS server files that will copy the file's uri to clipboard (this is needed because 'Copy Path' on Windows will change the path separator from "/" to "\", the added entry should copy the file uri verbatim); also rename 'Reload from Server' to 'Reload from SAS Server' in the tab title context menu
 - [-] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section: already added
 - [x] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
