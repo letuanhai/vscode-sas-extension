@@ -21,7 +21,7 @@
   - [x] 12.3. `SAS.reloadAllDataViewers`: reload data in all open DataViewer panels (button in library panel toolbar)
   - [x] 12.4. DataViewer tab stays in place on reload (reuse existing panel, reset via message instead of destroy+recreate)
   - [x] 12.5. DataViewer bottom padding so last row is not hidden by status bar
-- [ ] 13. bug: Copy SAS Server Path always copy path of active editor, even when running from different tab's context menu
+- [x] 13. bug: Copy SAS Server Path always copy path of active editor, even when running from different tab's context menu
 - [-] 14. Log output has no color on windows: log output highlighting is only available when using SAS color schemes
 - [ ] 15. Change Result pane title to Result-Filename
 - [ ] 16. Improve DataViewer panel: investigate using table viewer from https://github.com/yy0931/sqlite3-editor , and possible integration with SQLite3 Editor such as saving all opened SAS datasets to a temporary SQLite DB to be opened in SQLite3 Editor

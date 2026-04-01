@@ -550,30 +550,25 @@ class ContentNavigator implements SubscriptionProvider {
             }),
             commands.registerCommand(
               "SAS.server.copyServerPath",
-              async () => {
-                const editor = window.activeTextEditor;
-                if (!editor) {
+              async (uri?: Uri) => {
+                const targetUri = uri ?? window.activeTextEditor?.document.uri;
+                if (!targetUri || targetUri.scheme !== "sasServer") {
                   return;
                 }
-                const { uri } = editor.document;
-                if (uri.scheme !== "sasServer") {
-                  return;
-                }
-                await env.clipboard.writeText(uri.path);
+                await env.clipboard.writeText(targetUri.path);
               },
             ),
           ]
         : []),
-      commands.registerCommand(`${SAS}.reloadFromServer`, async () => {
-        const editor = window.activeTextEditor;
-        if (!editor) {
+      commands.registerCommand(`${SAS}.reloadFromServer`, async (uri?: Uri) => {
+        const targetUri = uri ?? window.activeTextEditor?.document.uri;
+        if (!targetUri || targetUri.scheme !== this.sourceType) {
           return;
         }
-        const uri = editor.document.uri;
-        if (uri.scheme !== this.sourceType) {
-          return;
-        }
-        if (editor.document.isDirty) {
+        const doc = workspace.textDocuments.find(
+          (d) => d.uri.toString() === targetUri.toString(),
+        );
+        if (doc?.isDirty) {
           const confirm = await window.showWarningMessage(
             l10n.t("Discard changes and reload from server?"),
             { modal: true },
@@ -583,7 +578,11 @@ class ContentNavigator implements SubscriptionProvider {
             return;
           }
         }
-        this.contentDataProvider.invalidateFile(uri);
+        this.contentDataProvider.invalidateFile(targetUri);
+        await window.showTextDocument(targetUri, {
+          preserveFocus: false,
+          preview: false,
+        });
         await commands.executeCommand("workbench.action.files.revert");
       }),
 
