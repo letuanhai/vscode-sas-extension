@@ -677,20 +677,44 @@ class StudioWebServerAdapter implements ContentAdapter {
     }
 
     // Items whose parent is the filesystem root ("/") are direct children of
-    // the virtual "SAS Server" root node.
+    // the virtual "SAS Server" root node. Check this BEFORE normalizing so
+    // that "/" is not converted to "" by the trailing-slash strip below.
     if (item.parentFolderUri === "/" || item.parentFolderUri === SERVER_FOLDER_ID) {
+      return rootNode;
+    }
+
+    // Normalize: strip trailing slash from parentFolderUri. Items loaded via
+    // syntheticFolder navigation in QuickBrowser may have parentFolderUri with
+    // a trailing slash (e.g. "/home/sasdemo/") while rootChildrenByUri keys
+    // are stored without trailing slashes (e.g. "/home/sasdemo").
+    const parentUri = item.parentFolderUri.replace(/\/$/, "");
+
+    // Lazy-load root children if the cache is empty. This happens when
+    // QuickBrowser is used to navigate to an absolute path before the user
+    // has expanded the SAS Server tree, so rootChildrenByUri has never been
+    // populated. Loading it here ensures the parent chain is resolved correctly.
+    if (this.rootChildrenByUri.size === 0) {
+      try {
+        await this.getChildItems(rootNode);
+      } catch {
+        // ignore; proceed with potentially incomplete cache
+      }
+    }
+
+    // Re-check after lazy-loading in case item itself is now found as a root child.
+    if (this.rootChildrenByUri.has(item.uri)) {
       return rootNode;
     }
 
     // If item's physical parent is a direct logical root child, return the
     // cached ContentItem so its uid exactly matches what getChildren returns.
-    const cachedParent = this.rootChildrenByUri.get(item.parentFolderUri);
+    const cachedParent = this.rootChildrenByUri.get(parentUri);
     if (cachedParent) {
       return cachedParent;
     }
 
     try {
-      return await this.getItemAtPath(item.parentFolderUri, true);
+      return await this.getItemAtPath(parentUri, true);
     } catch {
       return undefined;
     }
@@ -716,7 +740,7 @@ class StudioWebServerAdapter implements ContentAdapter {
     const parentPath = lastSlash > 0 ? normalised.slice(0, lastSlash) : "/";
 
     return this.convertEntryToContentItem(
-      { name, uri: path, isDirectory },
+      { name, uri: normalised, isDirectory },
       parentPath,
     );
   }

@@ -209,7 +209,7 @@ class ContentDataProvider
 
   public async provideDocumentDropEdits(
     document: TextDocument,
-    position: Position,
+    _position: Position,
     dataTransfer: DataTransfer,
     token: CancellationToken,
   ): Promise<DocumentDropEdit | undefined> {
@@ -584,6 +584,22 @@ class ContentDataProvider
     // we reveal with focus:false since the panel is already shown.
     void commands
       .executeCommand(`${this.treeIdentifier}.focus`)
+      .then(async () => {
+        // Folder navigation before reveal: load the item's parent folder so
+        // the tree data provider has the correct state for TreeView.reveal()
+        // to traverse the parent chain. This is especially needed when items
+        // are loaded via absolute path navigation in QuickBrowser (syntheticFolder),
+        // where the tree may not have expanded to that path yet and the adapter's
+        // internal cache (rootChildrenByUri) may not be populated.
+        try {
+          const parent = await this.model.getParent(item);
+          if (parent) {
+            await this.model.getChildren(parent);
+          }
+        } catch {
+          // Best-effort: proceed with reveal even if folder navigation fails
+        }
+      })
       .then(() =>
         this._treeView.reveal(item, { expand: true, select: true, focus: false }),
       )

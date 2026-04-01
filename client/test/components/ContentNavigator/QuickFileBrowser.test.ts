@@ -2818,4 +2818,430 @@ describe("QuickFileBrowser (integration)", function () {
       await showPromise;
     });
   });
+
+  // -----------------------------------------------------------------------
+  // task 6.11 – reveal after absolute path navigation
+  // -----------------------------------------------------------------------
+  describe("task 6.11: reveal after absolute path navigation", function () {
+
+    // Tracks the active capturing sandbox so afterEach can restore it.
+    let _capturingSb611: sinon.SinonSandbox | undefined;
+
+    afterEach(() => {
+      _capturingSb611?.restore();
+      _capturingSb611 = undefined;
+    });
+
+    /** Build a capturing sandbox that intercepts onDidAccept and onDidTriggerItemButton. */
+    function buildCapturingSandbox611(): {
+      sb: sinon.SinonSandbox;
+      capturedAccept: { fn: (() => void) | undefined };
+      capturedTriggerBtn: {
+        fn:
+          | ((e: { button: { tooltip?: string }; item: QuickPickItem }) => void)
+          | undefined;
+      };
+    } {
+      sandbox.restore();
+      const sb = sinon.createSandbox();
+      _capturingSb611 = sb;
+      const capturedAccept: { fn: (() => void) | undefined } = { fn: undefined };
+      const capturedTriggerBtn: {
+        fn:
+          | ((e: { button: { tooltip?: string }; item: QuickPickItem }) => void)
+          | undefined;
+      } = { fn: undefined };
+
+      const originalExec611 = commands.executeCommand;
+      sb.stub(commands, "executeCommand").callsFake(async (...args: unknown[]) => {
+        if (args[0] === "setContext") {
+          return undefined;
+        }
+        return (originalExec611 as Function).apply(commands, args);
+      });
+
+      const originalCreate611 = window.createQuickPick.bind(window);
+      sb.stub(window, "createQuickPick").callsFake(() => {
+        const qp = originalCreate611();
+        activeQuickPick = qp;
+
+        const origAccept = qp.onDidAccept.bind(qp);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (qp as any).onDidAccept = (listener: () => void) => {
+          capturedAccept.fn = listener;
+          return origAccept(listener);
+        };
+
+        const origTriggerBtn = qp.onDidTriggerItemButton.bind(qp);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (qp as any).onDidTriggerItemButton = (
+          listener: (e: {
+            button: { tooltip?: string };
+            item: QuickPickItem;
+          }) => void,
+        ) => {
+          capturedTriggerBtn.fn = listener;
+          return origTriggerBtn(listener as Parameters<typeof origTriggerBtn>[0]);
+        };
+
+        return qp;
+      });
+
+      return { sb, capturedAccept, capturedTriggerBtn };
+    }
+
+    type AnyItem611 = {
+      kind: string | number;
+      label: string;
+      buttons?: Array<{ tooltip?: string }>;
+    };
+
+    // -------------------------------------------------------------------
+    // 6.11.1. After absolute path navigation, reveal button calls onReveal
+    //         with the file item that has parentFolderUri with trailing slash
+    // -------------------------------------------------------------------
+    it("6.11.1: reveal button on a file loaded via absolute path navigation calls onReveal with the item", async () => {
+      const { sb, capturedTriggerBtn } = buildCapturingSandbox611();
+
+      // The file item as the adapter would return it for /home/sasdemo/ navigation
+      // parentFolderUri has trailing slash — this is the bug condition being tested
+      const sasFile: ContentItem = {
+        id: "test.sas",
+        uri: "/home/sasdemo/test.sas",
+        name: "test.sas",
+        links: [],
+        parentFolderUri: "/home/sasdemo/",
+        permission: { write: false, delete: false, addMember: false },
+        creationTimeStamp: 0,
+        modifiedTimeStamp: 0,
+      };
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, [makeFolder("home", "/home")]],
+          ["/home", [makeFolder("sasdemo", "/home/sasdemo")]],
+          // The trailing-slash key simulates what QuickBrowser uses after GotoItem
+          // navigation to /home/sasdemo/ — contentModel.getChildren(syntheticFolder("/home/sasdemo/"))
+          // calls adapter.getChildItems with parentFolderUri = "/home/sasdemo/"
+          ["/home/sasdemo/", [sasFile]],
+          ["/home/sasdemo", [sasFile]],
+        ]),
+      );
+
+      const model = new ContentModel(adapter);
+
+      let revealedItem: ContentItem | undefined;
+      const browser = new QuickFileBrowser(
+        model,
+        (item) => { revealedItem = item; },
+      );
+
+      // Navigate directly to /home/sasdemo/ (simulates accepting GotoItem for path /home/sasdemo/)
+      const showPromise = browser.show("/home/sasdemo/");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedTriggerBtn.fn, "onDidTriggerItemButton listener should be captured");
+
+      // The file should appear in the QuickPick
+      const items = activeQuickPick!.items as unknown as AnyItem611[];
+      const fileQpItem = items.find((i) => i.kind === "file" && i.label === "test.sas");
+      assert.isDefined(fileQpItem, "test.sas file item should be visible after absolute path navigation");
+
+      // Find the reveal button (tooltip "Reveal in SAS File Tree (or press Alt+Enter)")
+      const revealBtn = fileQpItem!.buttons?.find((b) =>
+        b.tooltip?.includes("Reveal"),
+      );
+      assert.isDefined(revealBtn, "file item should have a reveal button");
+
+      // Fire the reveal button — this simulates the user clicking the reveal icon
+      assert.isUndefined(revealedItem, "onReveal should not have fired yet");
+      capturedTriggerBtn.fn!({
+        button: revealBtn!,
+        item: fileQpItem as unknown as QuickPickItem,
+      });
+
+      await sleep(100);
+
+      // onReveal should have been called with the file item
+      assert.isDefined(revealedItem, "onReveal should be called when reveal button is triggered");
+      assert.equal(
+        revealedItem!.uri,
+        "/home/sasdemo/test.sas",
+        "revealed item should have the correct URI",
+      );
+      assert.equal(
+        revealedItem!.name,
+        "test.sas",
+        "revealed item should have the correct name",
+      );
+      assert.equal(
+        revealedItem!.parentFolderUri,
+        "/home/sasdemo/",
+        "revealed item should carry the parentFolderUri with trailing slash as set by the adapter",
+      );
+
+      // QuickPick hides after reveal button is clicked
+      await showPromise;
+      sb.restore();
+    });
+
+    // -------------------------------------------------------------------
+    // 6.11.2. After absolute path navigation, reveal button on a folder
+    //         also calls onReveal with the correct item
+    // -------------------------------------------------------------------
+    it("6.11.2: reveal button on a folder loaded via absolute path navigation calls onReveal with the folder item", async () => {
+      const { sb, capturedTriggerBtn } = buildCapturingSandbox611();
+
+      // Folder item as returned when browsing /home/sasdemo/
+      const subFolder: ContentItem = {
+        id: "projects",
+        uri: "/home/sasdemo/projects",
+        name: "projects",
+        links: [
+          {
+            method: "GET",
+            rel: "getDirectoryMembers",
+            href: "/home/sasdemo/projects",
+            uri: "/home/sasdemo/projects",
+            type: "GET",
+          },
+        ],
+        parentFolderUri: "/home/sasdemo/",
+        permission: { write: false, delete: false, addMember: false },
+        creationTimeStamp: 0,
+        modifiedTimeStamp: 0,
+      };
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, []],
+          ["/home/sasdemo/", [subFolder]],
+          ["/home/sasdemo", [subFolder]],
+        ]),
+      );
+
+      const model = new ContentModel(adapter);
+
+      let revealedItem: ContentItem | undefined;
+      const browser = new QuickFileBrowser(
+        model,
+        (item) => { revealedItem = item; },
+      );
+
+      const showPromise = browser.show("/home/sasdemo/");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedTriggerBtn.fn, "onDidTriggerItemButton listener should be captured");
+
+      const items = activeQuickPick!.items as unknown as AnyItem611[];
+      const folderQpItem = items.find((i) => i.kind === "folder" && i.label === "projects");
+      assert.isDefined(folderQpItem, "projects folder item should be visible after absolute path navigation");
+
+      const revealBtn = folderQpItem!.buttons?.find((b) =>
+        b.tooltip?.includes("Reveal"),
+      );
+      assert.isDefined(revealBtn, "folder item should have a reveal button");
+
+      assert.isUndefined(revealedItem, "onReveal should not have fired yet");
+      capturedTriggerBtn.fn!({
+        button: revealBtn!,
+        item: folderQpItem as unknown as QuickPickItem,
+      });
+
+      await sleep(100);
+
+      assert.isDefined(revealedItem, "onReveal should be called when reveal button is triggered on a folder");
+      assert.equal(
+        revealedItem!.uri,
+        "/home/sasdemo/projects",
+        "revealed folder item should have the correct URI",
+      );
+      assert.equal(
+        revealedItem!.parentFolderUri,
+        "/home/sasdemo/",
+        "revealed folder item should carry the parentFolderUri with trailing slash",
+      );
+
+      await showPromise;
+      sb.restore();
+    });
+
+    // -------------------------------------------------------------------
+    // 6.11.3. GotoItem acceptance for "/home/sasdemo/" navigates to that
+    //         path and loads items — then reveal works
+    // -------------------------------------------------------------------
+    it("6.11.3: accepting GotoItem for '/home/sasdemo/' navigates there and reveal button fires onReveal", async () => {
+      const { sb, capturedAccept, capturedTriggerBtn } = buildCapturingSandbox611();
+
+      const sasFile: ContentItem = {
+        id: "report.sas",
+        uri: "/home/sasdemo/report.sas",
+        name: "report.sas",
+        links: [],
+        parentFolderUri: "/home/sasdemo/",
+        permission: { write: false, delete: false, addMember: false },
+        creationTimeStamp: 0,
+        modifiedTimeStamp: 0,
+      };
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          [undefined, []],
+          ["/home/sasdemo/", [sasFile]],
+          ["/home/sasdemo", [sasFile]],
+        ]),
+      );
+
+      const model = new ContentModel(adapter);
+
+      let revealedItem: ContentItem | undefined;
+      const browser = new QuickFileBrowser(
+        model,
+        (item) => { revealedItem = item; },
+      );
+
+      // Start at root, then simulate typing /home/sasdemo/ and accepting GotoItem
+      const showPromise = browser.show();
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedAccept.fn, "onDidAccept listener should be captured");
+
+      // Simulate typing an absolute path with a trailing slash to produce a GotoItem
+      const realQp = activeQuickPick! as QuickPick<QuickPickItem>;
+      realQp.value = "/home/sasdemo/";
+      await sleep(50);
+
+      type GotoLike611 = { kind: string; path: string; filterText: string };
+      const gotoItem = activeQuickPick!.items[0] as unknown as GotoLike611;
+      assert.equal(gotoItem.kind, "goto", "first item should be a goto item after typing absolute path");
+      assert.equal(gotoItem.path, "/home/sasdemo/", "goto path should be /home/sasdemo/");
+
+      // Accept the GotoItem — this navigates to /home/sasdemo/
+      Object.defineProperty(activeQuickPick!, "selectedItems", {
+        get: () => [activeQuickPick!.items[0]],
+        configurable: true,
+      });
+      capturedAccept.fn!();
+
+      await sleep(300);
+      await waitForNotBusy(activeQuickPick!);
+
+      // Should now be browsing /home/sasdemo/ (title reflects this)
+      assert.equal(
+        activeQuickPick!.title,
+        "/home/sasdemo/",
+        "title should be /home/sasdemo/ after GotoItem acceptance",
+      );
+
+      // report.sas should appear in the items
+      const items = activeQuickPick!.items as unknown as AnyItem611[];
+      const fileQpItem = items.find((i) => i.kind === "file" && i.label === "report.sas");
+      assert.isDefined(fileQpItem, "report.sas should be visible after GotoItem navigation to /home/sasdemo/");
+
+      assert.isDefined(capturedTriggerBtn.fn, "onDidTriggerItemButton listener should be captured");
+
+      const revealBtn = fileQpItem!.buttons?.find((b) => b.tooltip?.includes("Reveal"));
+      assert.isDefined(revealBtn, "file item should have a reveal button");
+
+      // Fire the reveal button
+      capturedTriggerBtn.fn!({
+        button: revealBtn!,
+        item: fileQpItem as unknown as QuickPickItem,
+      });
+
+      await sleep(100);
+
+      assert.isDefined(
+        revealedItem,
+        "onReveal should be called after GotoItem navigation + reveal button click",
+      );
+      assert.equal(
+        revealedItem!.uri,
+        "/home/sasdemo/report.sas",
+        "onReveal should be called with the correct file URI",
+      );
+
+      await showPromise;
+      sb.restore();
+    });
+
+    // -------------------------------------------------------------------
+    // 6.11.4. syntheticFolder URI normalization: syntheticFolder("/home/sasdemo/")
+    //         URI has a trailing slash while syntheticFolder("/home/sasdemo")
+    //         does not — both should produce valid ContentItems for QuickBrowser
+    // -------------------------------------------------------------------
+    it("6.11.4: syntheticFolder retains its path as URI (trailing slash preserved)", () => {
+      // syntheticFolder does NOT strip trailing slashes — it passes the path
+      // through as-is to uri and the getDirectoryMembers link href/uri.
+      // The QuickBrowser uses the syntheticFolder URI as a cache key.
+      const sfSlash = syntheticFolder("/home/sasdemo/");
+      assert.equal(sfSlash.uri, "/home/sasdemo/", "syntheticFolder URI should preserve the trailing slash");
+      assert.equal(sfSlash.name, "sasdemo", "syntheticFolder name should be the last path segment");
+
+      const sfNoSlash = syntheticFolder("/home/sasdemo");
+      assert.equal(sfNoSlash.uri, "/home/sasdemo", "syntheticFolder URI should match input without trailing slash");
+      assert.equal(sfNoSlash.name, "sasdemo", "syntheticFolder name should be the same regardless of trailing slash");
+
+      // Both have the getDirectoryMembers link which makes them folders
+      assert.isTrue(isFolder(sfSlash), "syntheticFolder with trailing slash should be identified as a folder");
+      assert.isTrue(isFolder(sfNoSlash), "syntheticFolder without trailing slash should be identified as a folder");
+    });
+
+    // -------------------------------------------------------------------
+    // 6.11.5. No onReveal callback: clicking reveal button does not throw
+    // -------------------------------------------------------------------
+    it("6.11.5: reveal button click is a no-op when no onReveal callback is provided", async () => {
+      const { sb, capturedTriggerBtn } = buildCapturingSandbox611();
+
+      const sasFile: ContentItem = {
+        id: "test.sas",
+        uri: "/home/test.sas",
+        name: "test.sas",
+        links: [],
+        permission: { write: false, delete: false, addMember: false },
+        creationTimeStamp: 0,
+        modifiedTimeStamp: 0,
+      };
+
+      const adapter = createStubAdapter(
+        new Map<string | undefined, ContentItem[]>([
+          ["/home", [sasFile]],
+        ]),
+      );
+      const model = new ContentModel(adapter);
+
+      // No onReveal callback passed
+      const browser = new QuickFileBrowser(model);
+
+      const showPromise = browser.show("/home");
+      await sleep(200);
+      await waitForNotBusy(activeQuickPick!);
+
+      assert.isDefined(capturedTriggerBtn.fn, "onDidTriggerItemButton listener should be captured");
+
+      const items = activeQuickPick!.items as unknown as AnyItem611[];
+      const fileQpItem = items.find((i) => i.kind === "file" && i.label === "test.sas");
+      assert.isDefined(fileQpItem, "test.sas should be visible");
+
+      const revealBtn = fileQpItem!.buttons?.find((b) => b.tooltip?.includes("Reveal"));
+      assert.isDefined(revealBtn, "file item should have a reveal button");
+
+      // This should not throw even though there is no onReveal callback
+      assert.doesNotThrow(() => {
+        capturedTriggerBtn.fn!({
+          button: revealBtn!,
+          item: fileQpItem as unknown as QuickPickItem,
+        });
+      });
+
+      // QuickPick should hide after revealing (even without callback, hide() is called)
+      await sleep(100);
+
+      await showPromise;
+      sb.restore();
+    });
+  });
 });
