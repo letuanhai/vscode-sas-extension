@@ -28,6 +28,7 @@ import QuickFileBrowser, {
   getActiveItem,
   getActiveQuickPick,
   getActiveStoredItem,
+  goHome,
   toggleBookmarkActiveItem,
 } from "./QuickFileBrowser";
 import { QuickFileBrowserStore } from "./QuickFileBrowserStore";
@@ -44,9 +45,7 @@ import { isContainer as getIsContainer } from "./utils";
 
 const fileValidator = (value: string): string | null =>
   // file service does not allow /, <, >, ;, \, {, } and name must not be empty
-  /^[^/<>;\\{}]+$/.test(value)
-    ? null
-    : Messages.FileValidationError;
+  /^[^/<>;\\{}]+$/.test(value) ? null : Messages.FileValidationError;
 
 const flowFileValidator = (value: string): string | null => {
   let res = fileValidator(value);
@@ -77,10 +76,13 @@ class ContentNavigator implements SubscriptionProvider {
   private treeIdentifier: ContentNavigatorConfig["treeIdentifier"];
   private extensionUri: Uri;
   private readonly memento: Memento;
+  private quickBrowser: QuickFileBrowser | undefined;
+  private readonly quickBrowserStore: QuickFileBrowserStore;
 
   constructor(context: ExtensionContext, config: ContentNavigatorConfig) {
     this.extensionUri = context.extensionUri;
     this.memento = context.globalState;
+    this.quickBrowserStore = new QuickFileBrowserStore(this.memento);
     this.sourceType = config.sourceType;
     this.treeIdentifier = config.treeIdentifier;
     this.contentModel = new ContentModel(
@@ -292,8 +294,7 @@ class ContentNavigator implements SubscriptionProvider {
 
           // Pre-fetch sibling names for duplicate validation in the input box
           let siblingNames = new Set<string>();
-          const parentItem =
-            await this.contentDataProvider.getParent(resource);
+          const parentItem = await this.contentDataProvider.getParent(resource);
           if (parentItem) {
             const siblings =
               (await this.contentDataProvider.getChildren(parentItem)) || [];
@@ -505,13 +506,15 @@ class ContentNavigator implements SubscriptionProvider {
                 if (!this.contentModel.connected()) {
                   await this.contentModel.connect(this.viyaEndpoint());
                 }
-                const browser = new QuickFileBrowser(
-                  this.contentModel,
-                  (item) => this.contentDataProvider.reveal(item),
-                  this.extensionUri,
-                  new QuickFileBrowserStore(this.memento),
-                );
-                await browser.show(arg);
+                if (!this.quickBrowser) {
+                  this.quickBrowser = new QuickFileBrowser(
+                    this.contentModel,
+                    (item) => this.contentDataProvider.reveal(item),
+                    this.extensionUri,
+                    this.quickBrowserStore,
+                  );
+                }
+                await this.quickBrowser.show(arg);
               },
             ),
             commands.registerCommand(`${SAS}.quickBrowseReveal`, () => {
@@ -541,6 +544,9 @@ class ContentNavigator implements SubscriptionProvider {
             }),
             commands.registerCommand(`${SAS}.quickBrowseBookmarkItem`, () => {
               toggleBookmarkActiveItem();
+            }),
+            commands.registerCommand(`${SAS}.quickBrowseHome`, () => {
+              goHome();
             }),
           ]
         : []),
@@ -576,6 +582,7 @@ class ContentNavigator implements SubscriptionProvider {
             );
             this.contentDataProvider.useModel(contentModel);
             this.contentModel = contentModel;
+            this.quickBrowser = undefined;
             if (endpoint) {
               await this.contentDataProvider.connect(endpoint);
             } else {

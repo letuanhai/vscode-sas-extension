@@ -39,6 +39,9 @@ let _refreshItems: (() => void) | undefined;
 // Module-level store reference — allows commands to interact with the store.
 let _currentStore: QuickFileBrowserStore | undefined;
 
+// Module-level go home callback — allows commands to return to root.
+let _goHome: (() => void) | undefined;
+
 // Called by the quickBrowseBookmarkItem command (Alt+B keybinding).
 // Toggles bookmark on the currently active folder/file item and refreshes the list.
 export function toggleBookmarkActiveItem(): void {
@@ -47,6 +50,12 @@ export function toggleBookmarkActiveItem(): void {
     _currentStore.toggleBookmark(item, isFolder(item));
     _refreshItems?.();
   }
+}
+
+// Called by the quickBrowseHome command (Alt+H keybinding).
+// Returns to the root level of the quick file browser.
+export function goHome(): void {
+  _goHome?.();
 }
 
 // Button shown on each file/folder item — clicking it reveals the item in the
@@ -74,13 +83,18 @@ const CLEAR_HISTORY_BUTTON: QuickInputButton = {
   tooltip: "Clear Recent History",
 };
 
+const HOME_BUTTON: QuickInputButton = {
+  iconPath: new ThemeIcon("home"),
+  tooltip: "Back to start (Server Files, Bookmarks, History)",
+};
+
 // ---------------------------------------------------------------------------
 // Exported pure helpers (testable without vscode)
 // ---------------------------------------------------------------------------
 
 export function syntheticFolder(path: string): ContentItem {
   const name =
-    path === "/" ? "/" : path.split("/").filter(Boolean).pop() ?? path;
+    path === "/" ? "/" : (path.split("/").filter(Boolean).pop() ?? path);
   const link: Link = {
     method: "GET",
     rel: "getDirectoryMembers",
@@ -104,7 +118,9 @@ export function deriveParentPath(uri: string): string | undefined {
   const normalized =
     uri.length > 1 && uri.endsWith("/") ? uri.slice(0, -1) : uri;
   const lastSlash = normalized.lastIndexOf("/");
-  if (lastSlash <= 0) { return undefined; }
+  if (lastSlash <= 0) {
+    return undefined;
+  }
   return normalized.slice(0, lastSlash);
 }
 
@@ -127,19 +143,32 @@ export function sortContentItems(items: ContentItem[]): ContentItem[] {
 
 /** Format a byte count into a human-readable string. Returns "" for 0 or negative. */
 export function formatFileSize(bytes: number): string {
-  if (bytes <= 0) { return ""; }
-  if (bytes < 1024) { return `${bytes} B`; }
-  if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
-  if (bytes < 1024 * 1024 * 1024) { return `${(bytes / (1024 * 1024)).toFixed(1)} MB`; }
+  if (bytes <= 0) {
+    return "";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
 /** Format a Unix millisecond timestamp to "YYYY-MM-DD HH:MM". Returns "" for 0. */
 export function formatTimestamp(ts: number): string {
-  if (!ts) { return ""; }
+  if (!ts) {
+    return "";
+  }
   const d = new Date(ts);
   const date = d.toLocaleDateString("en-CA"); // "YYYY-MM-DD"
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); // "HH:MM"
+  const time = d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }); // "HH:MM"
   return `${date} ${time}`;
 }
 
@@ -211,13 +240,24 @@ interface BookmarkItem {
   buttons: readonly QuickInputButton[];
 }
 
+interface ActiveEditorItem {
+  kind: "activeEditor";
+  label: string; // filename from URI
+  iconPath: ThemeIcon | { light: Uri; dark: Uri };
+  resourceUri?: Uri;
+  description: string; // full server path
+  detail: string; // "Active Editor"
+  serverPath: string; // the URI path for navigation
+}
+
 type BrowserQuickPickItem =
   | ParentItem
   | FolderItem
   | FileItem
   | GotoItem
   | HistoryItem
-  | BookmarkItem;
+  | BookmarkItem
+  | ActiveEditorItem;
 
 // QuickPick<T> requires T extends QuickPickItem. Our BrowserQuickPickItem
 // fails that constraint because the string-literal `kind` discriminant
@@ -248,9 +288,9 @@ interface BrowserQuickPick {
     }) => void,
   ): { dispose(): void };
   buttons: readonly QuickInputButton[];
-  onDidTriggerButton(
-    listener: (button: QuickInputButton) => void,
-  ): { dispose(): void };
+  onDidTriggerButton(listener: (button: QuickInputButton) => void): {
+    dispose(): void;
+  };
   show(): void;
   hide(): void;
   dispose(): void;
@@ -258,9 +298,18 @@ interface BrowserQuickPick {
 
 /** Returns a stable key for preserving active-item focus across item list refreshes. */
 export function itemKey(item: BrowserQuickPickItem): string | undefined {
-  if (item.kind === "folder" || item.kind === "file") { return item.item.uri; }
-  if (item.kind === "history" || item.kind === "bookmark") { return item.storedItem.uri; }
-  if (item.kind === "parent") { return "__parent__"; }
+  if (item.kind === "folder" || item.kind === "file") {
+    return item.item.uri;
+  }
+  if (item.kind === "history" || item.kind === "bookmark") {
+    return item.storedItem.uri;
+  }
+  if (item.kind === "parent") {
+    return "__parent__";
+  }
+  if (item.kind === "activeEditor") {
+    return "__activeEditor__";
+  }
   return undefined;
 }
 
@@ -274,6 +323,11 @@ export default class QuickFileBrowser {
   private extensionUri: Uri | undefined;
   private store: QuickFileBrowserStore | undefined;
 
+  // Saved state for persistence across browser sessions
+  private savedStack: ContentItem[] = [];
+  private savedCache: Map<string, ContentItem[]> = new Map();
+  private savedActiveKey: string | undefined;
+
   constructor(
     contentModel: ContentModel,
     onReveal?: (item: ContentItem) => void,
@@ -284,6 +338,16 @@ export default class QuickFileBrowser {
     this.onReveal = onReveal;
     this.extensionUri = extensionUri;
     this.store = store;
+  }
+
+  /**
+   * Clears the saved browse state (stack, cache, active key).
+   * Called when explicitly navigating home or when the browser is disposed.
+   */
+  clearState(): void {
+    this.savedStack = [];
+    this.savedCache.clear();
+    this.savedActiveKey = undefined;
   }
 
   async show(arg?: ContentItem | string): Promise<void> {
@@ -304,25 +368,27 @@ export default class QuickFileBrowser {
     let nextFilter = "";
 
     // Determine initial folder from argument
+    const hasExplicitArg = arg !== undefined;
     if (typeof arg === "string") {
       stack.push(syntheticFolder(arg));
     } else if (arg !== undefined) {
       stack.push(arg);
-    } else {
-      // Task 6.6: no explicit arg — if the active editor is a SAS server file,
-      // pre-fill the input with its full path (stays at root; the onDidChangeValue
-      // handler will show the GotoItem automatically).
-      const activeUri = window.activeTextEditor?.document.uri;
-      if (
-        activeUri?.scheme === "sasServer" ||
-        activeUri?.scheme === "sasServerReadOnly"
-      ) {
-        nextFilter = activeUri.path;
+    } else if (this.savedStack.length > 0) {
+      // Restore saved state when no explicit argument provided
+      for (const item of this.savedStack) {
+        stack.push(item);
       }
     }
 
     // Per-session cache keyed by folder URI (or "root" for the root listing)
     const cache = new Map<string, ContentItem[]>();
+
+    // Seed cache from saved state if restoring
+    if (!hasExplicitArg && this.savedStack.length > 0) {
+      for (const [key, value] of this.savedCache.entries()) {
+        cache.set(key, value);
+      }
+    }
 
     // Monotonic version counter used to discard stale async responses
     const version = { current: 0 };
@@ -346,6 +412,12 @@ export default class QuickFileBrowser {
         this.store,
       ).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
+        // If restoring a saved folder fails, clear stack and reload from root
+        if (stack.length > 0) {
+          stack.length = 0;
+          this.clearState();
+          reload();
+        }
         void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
       });
     };
@@ -410,10 +482,17 @@ export default class QuickFileBrowser {
             void window.showErrorMessage(`Failed to open file: ${msg}`);
             qp.busy = false;
           });
-      } else if (
-        selected.kind === "history" ||
-        selected.kind === "bookmark"
-      ) {
+      } else if (selected.kind === "activeEditor") {
+        // Navigate to the file's parent folder and pre-filter to the filename
+        const parentPath = deriveParentPath(selected.serverPath);
+        const filename =
+          selected.serverPath.split("/").filter(Boolean).pop() ?? "";
+        if (parentPath !== undefined) {
+          stack.push(syntheticFolder(parentPath));
+          nextFilter = filename;
+          reload();
+        }
+      } else if (selected.kind === "history" || selected.kind === "bookmark") {
         const s = selected.storedItem;
         if (s.isFolder) {
           stack.push(syntheticFolder(s.uri));
@@ -485,12 +564,18 @@ export default class QuickFileBrowser {
         first?.kind === "history" || first?.kind === "bookmark"
           ? first.storedItem
           : undefined;
+      // Update saved active key for persistence
+      this.savedActiveKey = first ? itemKey(first) : undefined;
     });
 
     qp.onDidTriggerButton((btn) => {
       if (btn === CLEAR_HISTORY_BUTTON) {
         this.store?.clearHistory();
         refreshItems();
+      } else if (btn === HOME_BUTTON) {
+        stack.length = 0;
+        this.clearState();
+        reload();
       }
     });
 
@@ -543,19 +628,48 @@ export default class QuickFileBrowser {
     });
 
     qp.onDidHide(() => {
+      // Save state for persistence across browser sessions
+      this.savedStack = [...stack];
+      this.savedCache = new Map(cache);
+      this.savedActiveKey = qp.activeItems[0]
+        ? itemKey(qp.activeItems[0])
+        : undefined;
+
       _activeQp = undefined;
       _activeItem = undefined;
       _activeStoredItem = undefined;
       _refreshItems = undefined;
       _currentStore = undefined;
+      _goHome = undefined;
       void commands.executeCommand("setContext", "SAS.quickBrowseOpen", false);
-      cache.clear();
       qp.dispose();
     });
 
+    // Set up go home callback for the keybinding command
+    _goHome = () => {
+      stack.length = 0;
+      this.clearState();
+      reload();
+    };
+
     void commands.executeCommand("setContext", "SAS.quickBrowseOpen", true);
     qp.show();
+
+    // If restoring saved state, restore focus to saved active key after load
+    const restoreFocus = !hasExplicitArg && this.savedStack.length > 0;
+    const targetActiveKey = restoreFocus ? this.savedActiveKey : undefined;
+
     reload();
+
+    // Restore focus after a brief delay to allow items to load
+    if (restoreFocus && targetActiveKey) {
+      setTimeout(() => {
+        const found = qp.items.find((i) => itemKey(i) === targetActiveKey);
+        if (found) {
+          qp.activeItems = [found];
+        }
+      }, 50);
+    }
   }
 
   private async loadFolder(
@@ -600,13 +714,24 @@ export default class QuickFileBrowser {
     const folderCount = sorted.filter(isFolder).length;
     const fileCount = sorted.filter((i) => !isFolder(i)).length;
     const parts: string[] = [];
-    if (folderCount > 0) { parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`); }
-    if (fileCount > 0) { parts.push(`${fileCount} ${fileCount === 1 ? "file" : "files"}`); }
+    if (folderCount > 0) {
+      parts.push(`${folderCount} ${folderCount === 1 ? "folder" : "folders"}`);
+    }
+    if (fileCount > 0) {
+      parts.push(`${fileCount} ${fileCount === 1 ? "file" : "files"}`);
+    }
     const parentDescription = parts.join(", ") || "empty";
 
     const parentItems: ParentItem[] =
       stack.length > 0
-        ? [{ kind: "parent", label: "..", iconPath: new ThemeIcon("arrow-left"), detail: parentDescription }]
+        ? [
+            {
+              kind: "parent",
+              label: "..",
+              iconPath: new ThemeIcon("arrow-left"),
+              detail: parentDescription,
+            },
+          ]
         : [];
 
     const folderItems: FolderItem[] = sorted.filter(isFolder).map((item) => ({
@@ -664,7 +789,9 @@ export default class QuickFileBrowser {
           suffixItems.push({
             kind: "bookmark",
             label: b.name,
-            iconPath: b.isFolder ? new ThemeIcon("folder") : this.iconPathForFile(b.name),
+            iconPath: b.isFolder
+              ? new ThemeIcon("folder")
+              : this.iconPathForFile(b.name),
             resourceUri: b.isFolder ? undefined : Uri.file(b.name),
             description: b.uri,
             storedItem: b,
@@ -685,7 +812,9 @@ export default class QuickFileBrowser {
           suffixItems.push({
             kind: "history",
             label: h.name,
-            iconPath: h.isFolder ? new ThemeIcon("folder") : this.iconPathForFile(h.name),
+            iconPath: h.isFolder
+              ? new ThemeIcon("folder")
+              : this.iconPathForFile(h.name),
             resourceUri: h.isFolder ? undefined : Uri.file(h.name),
             description: h.uri,
             storedItem: h,
@@ -695,23 +824,46 @@ export default class QuickFileBrowser {
       }
     }
 
+    // Active editor item at root level (when active editor is a SAS server file)
+    const activeEditorItems: BrowserQuickPickItem[] = [];
+    if (stack.length === 0) {
+      const activeUri = window.activeTextEditor?.document.uri;
+      if (
+        activeUri?.scheme === "sasServer" ||
+        activeUri?.scheme === "sasServerReadOnly"
+      ) {
+        const filename = activeUri.path.split("/").filter(Boolean).pop() ?? "";
+        activeEditorItems.push({
+          kind: "activeEditor",
+          label: filename,
+          iconPath: this.iconPathForFile(filename),
+          resourceUri: Uri.file(filename),
+          description: activeUri.path,
+          detail: "Active Editor",
+          serverPath: activeUri.path,
+        } satisfies ActiveEditorItem);
+      }
+    }
+
     // "Server Files" separator appears at the top when supplementary sections exist
     const serverFilesSep: BrowserQuickPickItem[] =
-      suffixItems.length > 0
-        ? ([
+      suffixItems.length > 0 || activeEditorItems.length > 0
+        ? [
             // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
             {
               kind: QuickPickItemKind.Separator,
               label: "Server Files",
             } as unknown as BrowserQuickPickItem,
-          ])
+          ]
         : [];
 
     // Capture the currently active item so we can restore focus after replacing items.
     // VS Code resets focus to the first item whenever qp.items is reassigned.
-    const prevKey = qp.activeItems[0] !== undefined ? itemKey(qp.activeItems[0]) : undefined;
+    const prevKey =
+      qp.activeItems[0] !== undefined ? itemKey(qp.activeItems[0]) : undefined;
 
     qp.items = [
+      ...activeEditorItems,
       ...serverFilesSep,
       ...parentItems,
       ...folderItems,
@@ -729,11 +881,13 @@ export default class QuickFileBrowser {
       }
     }
 
-    // Show the clear-history title button only when there is history at root level
-    if (stack.length === 0 && store) {
+    // Set title buttons: HOME_BUTTON when navigating, CLEAR_HISTORY at root with history
+    if (stack.length > 0) {
+      qp.buttons = [HOME_BUTTON];
+    } else if (store) {
       const history = store.getHistory();
       qp.buttons = history.length > 0 ? [CLEAR_HISTORY_BUTTON] : [];
-    } else if (stack.length === 0) {
+    } else {
       qp.buttons = [];
     }
 
@@ -742,9 +896,7 @@ export default class QuickFileBrowser {
     qp.value = initialFilter;
   }
 
-  private iconPathForFile(
-    name: string,
-  ): ThemeIcon | { light: Uri; dark: Uri } {
+  private iconPathForFile(name: string): ThemeIcon | { light: Uri; dark: Uri } {
     if (this.extensionUri && name.toLowerCase().endsWith(".sas7bdat")) {
       return {
         dark: Uri.joinPath(this.extensionUri, "icons/dark/sasDataSetDark.svg"),
