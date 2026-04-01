@@ -23,6 +23,6 @@
   - [x] 12.5. DataViewer bottom padding so last row is not hidden by status bar
 - [x] 13. bug: Copy SAS Server Path always copy path of active editor, even when running from different tab's context menu
 - [-] 14. Log output has no color on windows: log output highlighting is only available when using SAS color schemes
-- [ ] 15. Change Result pane title to Result-Filename
+- [x] 15. Change Result pane title to Result-Filename to know which result pane is for which program
 - [ ] 16. Improve DataViewer panel: investigate using table viewer from https://github.com/yy0931/sqlite3-editor , and possible integration with SQLite3 Editor such as saving all opened SAS datasets to a temporary SQLite DB to be opened in SQLite3 Editor
   - [ ] 16.1. Text selection is disabled in data viewer, need to to allow text selection (both column names and data values)

@@ -133,7 +133,7 @@ async function runCode(selected?: boolean, uri?: Uri) {
       return session
         .run(codeDoc.getWrappedCode(), { baseDirectory: basePath })
         .then((results) => {
-          showOutputDatasets(results.html5, results.dataSets ?? [], uri);
+          showOutputDatasets(results.html5, results.dataSets ?? [], uri, l10n.t("Result - {fileName}", { fileName: basename(fullPath) }));
         });
     },
   );
