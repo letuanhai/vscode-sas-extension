@@ -25,7 +25,6 @@
 - [-] 14. Log output has no color on windows: log output highlighting is only available when using SAS color schemes
 - [x] 15. Change Result pane title to Result-Filename to know which result pane is for which program
 - [ ] 16. Improve DataViewer panel — see `docs/task-16-dataviewer-improvement-spec.md` for full spec
-  - [ ] 16.1a. Enable text selection in cell values and column headers (enableCellTextSelection + ensureDomOrder)
-  - [ ] 16.1b. Custom cell/row/column/range selection layer with Ctrl/Cmd+C copy (useSelection.ts)
-  - [ ] 16.1c. Column management tab (ColumnManager.tsx + TabBar.tsx) — search, visibility toggles, copy column names
-  - [ ] 16.2. SQLite3 Editor integration — generate CREATE TABLE + INSERT SQL, copy to clipboard or execute via query-editor
+  - [ ] 16.1. Custom cell/row/column/range selection layer with Ctrl/Cmd+C copy (useSelection.ts)
+  - [ ] 16.2. Column management tab (ColumnManager.tsx + TabBar.tsx) — search, visibility toggles, copy column names
+  - [ ] 16.3. SQLite3 Editor integration — generate CREATE TABLE + INSERT SQL, copy to clipboard or execute via query-editor
