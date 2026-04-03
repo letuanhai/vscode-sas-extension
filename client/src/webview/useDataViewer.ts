@@ -353,6 +353,31 @@ const useDataViewer = () => {
     [setColumnsVisible],
   );
 
+  const setColumnOrder = useCallback(
+    (columnNames: string[]) => {
+      const api = gridRef.current?.api;
+      if (api) {
+        const columnState = columnNames.map((name, index) => ({
+          colId: name,
+          hide: hiddenColumns.has(name),
+        }));
+        api.applyColumnState({
+          state: columnState,
+          applyOrder: true,
+        });
+        api.refreshHeader();
+      }
+      setOrderedColumnNames(columnNames);
+      storeViewProperties({
+        columnState: columnNames.map((name, index) => ({
+          colId: name,
+          hide: hiddenColumns.has(name),
+        })),
+      });
+    },
+    [hiddenColumns],
+  );
+
   useEffect(() => {
     if (columns.length > 0) {
       return;
@@ -506,6 +531,7 @@ const useDataViewer = () => {
     onGridReady,
     rawColumns,
     refreshResults,
+    setColumnOrder,
     setColumnVisibility,
     setColumnsVisible,
     setOnColumnSelect,

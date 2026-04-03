@@ -88,6 +88,7 @@ class DataViewer extends WebView {
       "Deselect all columns": l10n.t("Deselect all columns"),
       "Copy selected column names": l10n.t("Copy selected column names"),
       "Copy all column names": l10n.t("Copy all column names"),
+      "Drag to reorder": l10n.t("Drag to reorder"),
       Sort: l10n.t("Sort"),
       Type: l10n.t("Type"),
     };

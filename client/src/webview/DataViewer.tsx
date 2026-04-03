@@ -50,6 +50,7 @@ const DataViewer = () => {
     onGridReady,
     rawColumns,
     refreshResults,
+    setColumnOrder,
     setColumnVisibility,
     setColumnsVisible,
     setOnColumnSelect,
@@ -236,6 +237,7 @@ const DataViewer = () => {
           hiddenColumns={hiddenColumns}
           onVisibilityChange={setColumnVisibility}
           onBulkVisibilityChange={setColumnsVisible}
+          onColumnOrderChange={setColumnOrder}
         />
       )}
     </div>

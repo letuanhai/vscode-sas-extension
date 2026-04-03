@@ -11,6 +11,7 @@ interface ColumnManagerProps {
   hiddenColumns: Set<string>;
   onVisibilityChange: (columnName: string, visible: boolean) => void;
   onBulkVisibilityChange: (columnNames: string[], visible: boolean) => void;
+  onColumnOrderChange?: (columnNames: string[]) => void;
 }
 
 const ColumnManager = ({
@@ -18,10 +19,12 @@ const ColumnManager = ({
   hiddenColumns,
   onVisibilityChange,
   onBulkVisibilityChange,
+  onColumnOrderChange,
 }: ColumnManagerProps) => {
   const [searchValue, setSearchValue] = useState("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
@@ -82,6 +85,41 @@ const ColumnManager = ({
     onVisibilityChange(columnName, checked);
   };
 
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndex !== null && dragIndex !== index) {
+      setDropIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIdx: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === dropIdx || searchValue) {
+      setDragIndex(null);
+      setDropIndex(null);
+      return;
+    }
+    const newOrder = [...columns];
+    const [dragged] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(dropIdx, 0, dragged);
+    onColumnOrderChange?.(newOrder.map((c) => c.name!));
+    setDragIndex(null);
+    setDropIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDropIndex(null);
+  };
+
   return (
     <div className="column-manager">
       <div className="column-manager-search">
@@ -140,10 +178,22 @@ const ColumnManager = ({
           <div className="col-informat">{localize("Informat")}</div>
           <div className="col-label">{localize("Label")}</div>
         </div>
-        {filteredColumns.map((col) => {
+        {filteredColumns.map((col, index) => {
           const isVisible = !hiddenColumns.has(col.name!);
+          const isDragTarget =
+            dropIndex === index && dragIndex !== null && dragIndex !== index;
+          const isDragging = dragIndex === index;
           return (
-            <div key={col.name} className="column-manager-row">
+            <div
+              key={col.name}
+              className={`column-manager-row${isDragging ? " dragging" : ""}${isDragTarget ? " drop-target" : ""}`}
+              draggable={!searchValue}
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+            >
               <div className="col-checkbox">
                 <input
                   type="checkbox"
@@ -153,7 +203,17 @@ const ColumnManager = ({
                   }
                 />
               </div>
-              <div className="col-name">{col.name}</div>
+              <div className="col-name">
+                {!searchValue && (
+                  <span
+                    className="drag-handle"
+                    title={localize("Drag to reorder")}
+                  >
+                    ⠿
+                  </span>
+                )}
+                {col.name}
+              </div>
               <div className="col-type">
                 <span
                   className={`header-icon ${getIconForColumnType(col.type || "")}`}

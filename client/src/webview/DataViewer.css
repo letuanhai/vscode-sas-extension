@@ -387,3 +387,31 @@ button,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.column-manager-row {
+  cursor: default;
+}
+
+.column-manager-row[draggable="true"] {
+  cursor: grab;
+}
+
+.column-manager-row.dragging {
+  opacity: 0.5;
+  background: var(--vscode-list-activeSelectionBackground);
+}
+
+.column-manager-row.drop-target {
+  border-top: 2px solid var(--vscode-focusBorder);
+}
+
+.drag-handle {
+  cursor: grab;
+  margin-right: 0.25rem;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8em;
+}
+
+.drag-handle:hover {
+  color: var(--vscode-foreground);
+}
