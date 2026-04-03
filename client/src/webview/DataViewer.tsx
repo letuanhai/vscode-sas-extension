@@ -141,7 +141,7 @@ const DataViewer = () => {
         <div className="row-count-bar">
           {selection.hasSelection() && (
             <span className="selection-hint">
-              {localize("Press {0} to copy", { "0": copyHintKey })}
+              {localize("Press {0} to copy as CSV", { "0": copyHintKey })}
             </span>
           )}
           <span className="row-count">

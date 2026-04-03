@@ -69,7 +69,7 @@ class DataViewer extends WebView {
       Numeric: l10n.t("Numeric"),
       Options: l10n.t("Options"),
       Pin: l10n.t("Pin"),
-      "Press {0} to copy": l10n.t("Press {0} to copy"),
+      "Press {0} to copy as CSV": l10n.t("Press {0} to copy as CSV"),
       Properties: l10n.t("Properties"),
       Search: l10n.t("Search"),
       "Select all": l10n.t("Select all"),

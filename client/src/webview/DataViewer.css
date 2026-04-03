@@ -34,11 +34,9 @@ body,
 }
 
 .selection-hint {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
-  padding: 2px 6px;
-  background: var(--vscode-editorInfo-foreground, rgba(0, 120, 215, 0.1));
-  border-radius: 3px;
+  color: var(--vscode-textLink-foreground);
+  font-size: 0.85em;
+  font-style: italic;
 }
 
 .row-count {
