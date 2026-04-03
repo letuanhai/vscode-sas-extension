@@ -388,7 +388,7 @@ button,
 }
 
 .column-manager-header {
-  background: var(--vscode-editorGroupHeader-background);
+  background: var(--vscode-keybindingTable-headerBackground);
   font-weight: bold;
   position: sticky;
   top: 0;
@@ -430,7 +430,7 @@ button,
 }
 
 .col-length {
-  text-align: right;
+  text-align: left;
 }
 
 .col-format,
