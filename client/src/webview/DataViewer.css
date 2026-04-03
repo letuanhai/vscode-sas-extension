@@ -93,6 +93,8 @@ body,
 .header-icon.date-time,
 .header-icon.currency,
 .header-icon.char {
+  display: inline-block;
+  vertical-align: middle;
   width: 16px;
   height: 22px;
   margin-right: 0.25rem;
@@ -377,26 +379,44 @@ button,
   flex: 1;
   overflow-y: auto;
   border: 1px solid var(--vscode-editorGroup-border);
+  background: var(--vscode-editor-background);
 }
 
-.column-manager-header,
-.column-manager-row {
-  display: grid;
-  grid-template-columns: 30px 1fr 60px 50px 80px 80px 1fr;
-  padding: 0.25rem 0.5rem;
+.column-manager-table {
+  width: 100%;
+  border-collapse: collapse;
   user-select: text;
 }
 
-.column-manager-header {
-  background: var(--vscode-keybindingTable-headerBackground);
-  font-weight: bold;
+.column-manager-table th,
+.column-manager-table td {
+  padding: 0.25rem 1.25rem 0.25rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.column-manager-table th:last-child,
+.column-manager-table td:last-child {
+  padding-right: 0.5rem;
+  width: 100%;
+}
+
+.column-manager-header th {
   position: sticky;
   top: 0;
   z-index: 1;
+  font-weight: bold;
+  background: color-mix(in srgb, var(--vscode-editor-background) 80%, var(--vscode-foreground));
+  border-bottom: 1px solid var(--vscode-editorGroup-border);
 }
 
-.column-manager-row {
+.column-manager-row td {
   border-bottom: 1px solid var(--vscode-editorGroup-border);
+}
+
+th.col-name,
+td.col-name {
+  min-width: 10ch;
 }
 
 .column-manager-row:hover {
@@ -408,9 +428,9 @@ button,
 }
 
 .col-checkbox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 30px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .col-name {
@@ -420,13 +440,13 @@ button,
 }
 
 .col-type {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .col-type .type-text {
   font-size: 0.85em;
+  vertical-align: middle;
 }
 
 .col-length {

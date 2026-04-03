@@ -243,75 +243,86 @@ const ColumnManager = ({
         </div>
       </div>
       <div className="column-manager-list">
-        <div className="column-manager-header">
-          <div className="col-checkbox"></div>
-          <div className="col-name">{localize("Name")}</div>
-          <div className="col-type">{localize("Type")}</div>
-          <div className="col-length">{localize("Length")}</div>
-          <div className="col-format">{localize("Format")}</div>
-          <div className="col-informat">{localize("Informat")}</div>
-          <div className="col-label">{localize("Label")}</div>
-        </div>
-        {filteredColumns.map((col, index) => {
-          const isVisible = !hiddenColumns.has(col.name!);
-          const isDragTarget =
-            dropIndex === index && dragIndex !== null && dragIndex !== index;
-          const isDragging = dragIndex === index;
-          return (
-            <div
-              key={col.name}
-              className={`column-manager-row${isDragging ? " dragging" : ""}${isDragTarget ? " drop-target" : ""}`}
-              draggable={!searchValue}
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="col-checkbox">
-                <input
-                  type="checkbox"
-                  checked={isVisible}
-                  onChange={(e) =>
-                    handleCheckboxChange(
-                      col.name!,
-                      e.target.checked,
-                      index,
-                      false,
-                    )
-                  }
-                  onClick={(e) => {
-                    if (e.shiftKey) {
-                      e.stopPropagation();
-                      handleCheckboxChange(col.name!, !isVisible, index, true);
-                    }
-                  }}
-                />
-              </div>
-              <div className="col-name">
-                {!searchValue && (
-                  <span
-                    className="drag-handle"
-                    title={localize("Drag to reorder")}
-                  >
-                    ⠿
-                  </span>
-                )}
-                {col.name}
-              </div>
-              <div className="col-type">
-                <span
-                  className={`header-icon ${getIconForColumnType(col.type || "")}`}
-                />
-                <span className="type-text">{col.type || ""}</span>
-              </div>
-              <div className="col-length">{col.length}</div>
-              <div className="col-format">{col.format?.name || ""}</div>
-              <div className="col-informat">{col.informat?.name || ""}</div>
-              <div className="col-label">{col.label || ""}</div>
-            </div>
-          );
-        })}
+        <table className="column-manager-table">
+          <thead>
+            <tr className="column-manager-header">
+              <th className="col-checkbox"></th>
+              <th className="col-name">{localize("Name")}</th>
+              <th className="col-type">{localize("Type")}</th>
+              <th className="col-length">{localize("Length")}</th>
+              <th className="col-format">{localize("Format")}</th>
+              <th className="col-informat">{localize("Informat")}</th>
+              <th className="col-label">{localize("Label")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredColumns.map((col, index) => {
+              const isVisible = !hiddenColumns.has(col.name!);
+              const isDragTarget =
+                dropIndex === index && dragIndex !== null && dragIndex !== index;
+              const isDragging = dragIndex === index;
+              return (
+                <tr
+                  key={col.name}
+                  className={`column-manager-row${isDragging ? " dragging" : ""}${isDragTarget ? " drop-target" : ""}`}
+                  draggable={!searchValue}
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <td className="col-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={isVisible}
+                      onChange={(e) =>
+                        handleCheckboxChange(
+                          col.name!,
+                          e.target.checked,
+                          index,
+                          false,
+                        )
+                      }
+                      onClick={(e) => {
+                        if (e.shiftKey) {
+                          e.stopPropagation();
+                          handleCheckboxChange(
+                            col.name!,
+                            !isVisible,
+                            index,
+                            true,
+                          );
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="col-name">
+                    {!searchValue && (
+                      <span
+                        className="drag-handle"
+                        title={localize("Drag to reorder")}
+                      >
+                        ⠿
+                      </span>
+                    )}
+                    {col.name}
+                  </td>
+                  <td className="col-type">
+                    <span
+                      className={`header-icon ${getIconForColumnType(col.type || "")}`}
+                    />
+                    <span className="type-text">{col.type || ""}</span>
+                  </td>
+                  <td className="col-length">{col.length}</td>
+                  <td className="col-format">{col.format?.name || ""}</td>
+                  <td className="col-informat">{col.informat?.name || ""}</td>
+                  <td className="col-label">{col.label || ""}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
