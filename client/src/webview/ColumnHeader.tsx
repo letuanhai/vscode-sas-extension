@@ -4,46 +4,9 @@ import { useRef } from "react";
 
 import { AgColumn, GridApi } from "ag-grid-community";
 
+import { getIconForColumnType, getTermForColumnType } from "./columnTypeIcon";
 import localize from "./localize";
 import useTheme from "./useTheme";
-
-const getIconForColumnType = (type: string) => {
-  switch (type.toLocaleLowerCase()) {
-    case "float":
-    case "num":
-      return "float";
-    case "date":
-      return "date";
-    case "time":
-      return "time";
-    case "datetime":
-      return "date-time";
-    case "currency":
-      return "currency";
-    case "char":
-      return "char";
-    default:
-      return "";
-  }
-};
-
-const getTermForColumnType = (type: string) => {
-  switch (type.toLocaleLowerCase()) {
-    case "float":
-    case "num":
-      return localize("Numeric");
-    case "date":
-      return localize("Date");
-    case "time":
-    case "datetime":
-      return localize("Datetime");
-    case "currency":
-      return localize("Currency");
-    case "char":
-    default:
-      return localize("Character");
-  }
-};
 
 const ColumnHeader = ({
   api,

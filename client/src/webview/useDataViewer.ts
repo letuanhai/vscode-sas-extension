@@ -142,6 +142,9 @@ const useDataViewer = () => {
   const [queryParams, setQueryParamsState] = useState<TableQuery | undefined>(
     undefined,
   );
+  const [activeTab, setActiveTab] = useState<"data" | "columns">("data");
+  const [rawColumns, setRawColumns] = useState<Column[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const setQueryParams = (query: TableQuery | undefined) => {
     setQueryParamsState(query);
     storeViewProperties({ query });
@@ -275,6 +278,33 @@ const useDataViewer = () => {
     [],
   );
 
+  const setColumnsVisible = useCallback(
+    (columnNames: string[], visible: boolean) => {
+      if (!gridRef.current?.api) {
+        return;
+      }
+      gridRef.current.api.setColumnsVisible(columnNames, visible);
+      setHiddenColumns((prev) => {
+        const next = new Set(prev);
+        if (visible) {
+          columnNames.forEach((name) => next.delete(name));
+        } else {
+          columnNames.forEach((name) => next.add(name));
+        }
+        storeViewProperties({ hiddenColumns: Array.from(next) });
+        return next;
+      });
+    },
+    [],
+  );
+
+  const setColumnVisibility = useCallback(
+    (columnName: string, visible: boolean) => {
+      setColumnsVisible([columnName], visible);
+    },
+    [setColumnsVisible],
+  );
+
   useEffect(() => {
     if (columns.length > 0) {
       return;
@@ -295,6 +325,11 @@ const useDataViewer = () => {
         if (columnCount !== undefined) {
           setTotalColumnCount(columnCount);
         }
+        if (viewProperties.hiddenColumns) {
+          setHiddenColumns(new Set(viewProperties.hiddenColumns));
+        }
+
+        setRawColumns(columnsData);
 
         const columns: ColDef[] = columnsData.map((column) => ({
           field: column.name,
@@ -410,13 +445,19 @@ const useDataViewer = () => {
   }, []);
 
   return {
+    activeTab,
+    setActiveTab,
     columnMenu,
     columns,
     dismissMenu,
     getAllDataColumns,
     gridRef,
+    hiddenColumns,
     onGridReady,
+    rawColumns,
     refreshResults,
+    setColumnVisibility,
+    setColumnsVisible,
     setOnColumnSelect,
     totalRowCount,
     totalColumnCount,

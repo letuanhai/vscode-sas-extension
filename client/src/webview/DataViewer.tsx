@@ -7,7 +7,9 @@ import { CellClickedEvent } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 import ".";
+import ColumnManager from "./ColumnManager";
 import ColumnMenu from "./ColumnMenu";
+import TabBar from "./TabBar";
 import TableFilter from "./TableFilter";
 import localize from "./localize";
 import useDataViewer from "./useDataViewer";
@@ -35,13 +37,19 @@ const DataViewer = () => {
     .getAttribute("data-title");
   const theme = useTheme();
   const {
+    activeTab,
+    setActiveTab,
     columnMenu,
     columns,
     dismissMenu,
     getAllDataColumns,
     gridRef,
+    hiddenColumns,
     onGridReady,
+    rawColumns,
     refreshResults,
+    setColumnVisibility,
+    setColumnsVisible,
     setOnColumnSelect,
     totalRowCount,
     totalColumnCount,
@@ -156,60 +164,80 @@ const DataViewer = () => {
           </span>
         </div>
       )}
-      <TableFilter
-        onCommit={(value) => {
-          refreshResults({ filterValue: value });
-        }}
-        initialValue={viewProperties()?.query?.filterValue ?? ""}
+      <TabBar
+        tabs={["Data", "Columns"]}
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab as "data" | "columns")}
       />
-      {columnMenu && <ColumnMenu {...columnMenu} />}
-      <div
-        className={`ag-grid-wrapper ${theme}`}
-        style={gridStyles}
-        onClick={() => columnMenu && dismissMenuWithoutFocus()}
-      >
-        <AgGridReact
-          ref={gridRef}
-          cacheBlockSize={100}
-          columnDefs={columns}
-          context={{
-            isCellSelected: selection.isCellSelected,
-            isColumnSelected: (col: string) => {
-              const sel = selection.selection;
-              if (!sel.anchor || !sel.end || !sel.mode) {
-                return false;
+      {activeTab === "data" && (
+        <>
+          <TableFilter
+            onCommit={(value) => {
+              refreshResults({ filterValue: value });
+            }}
+            initialValue={viewProperties()?.query?.filterValue ?? ""}
+          />
+          {columnMenu && <ColumnMenu {...columnMenu} />}
+          <div
+            className={`ag-grid-wrapper ${theme}`}
+            style={gridStyles}
+            onClick={() => columnMenu && dismissMenuWithoutFocus()}
+          >
+            <AgGridReact
+              ref={gridRef}
+              cacheBlockSize={100}
+              columnDefs={columns}
+              context={{
+                isCellSelected: selection.isCellSelected,
+                isColumnSelected: (col: string) => {
+                  const sel = selection.selection;
+                  if (!sel.anchor || !sel.end || !sel.mode) {
+                    return false;
+                  }
+                  if (sel.mode !== "column" && sel.mode !== "range") {
+                    return false;
+                  }
+                  const allCols = getAllDataColumns();
+                  const startIdx = allCols.indexOf(sel.anchor.col);
+                  const endIdx = allCols.indexOf(sel.end.col);
+                  const colIdx = allCols.indexOf(col);
+                  if (startIdx === -1 || endIdx === -1 || colIdx === -1) {
+                    return false;
+                  }
+                  const [lo, hi] =
+                    startIdx <= endIdx
+                      ? [startIdx, endIdx]
+                      : [endIdx, startIdx];
+                  return colIdx >= lo && colIdx <= hi;
+                },
+              }}
+              defaultColDef={{
+                sortable: true,
+              }}
+              maintainColumnOrder
+              infiniteInitialRowCount={100}
+              maxBlocksInCache={10}
+              onGridReady={onGridReady}
+              onCellClicked={onCellClicked}
+              rowModelType="infinite"
+              theme="legacy"
+              noRowsOverlayComponent={() =>
+                localize("No data matches the current filters.")
               }
-              if (sel.mode !== "column" && sel.mode !== "range") {
-                return false;
-              }
-              const allCols = getAllDataColumns();
-              const startIdx = allCols.indexOf(sel.anchor.col);
-              const endIdx = allCols.indexOf(sel.end.col);
-              const colIdx = allCols.indexOf(col);
-              if (startIdx === -1 || endIdx === -1 || colIdx === -1) {
-                return false;
-              }
-              const [lo, hi] =
-                startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-              return colIdx >= lo && colIdx <= hi;
-            },
-          }}
-          defaultColDef={{
-            sortable: true,
-          }}
-          maintainColumnOrder
-          infiniteInitialRowCount={100}
-          maxBlocksInCache={10}
-          onGridReady={onGridReady}
-          onCellClicked={onCellClicked}
-          rowModelType="infinite"
-          theme="legacy"
-          noRowsOverlayComponent={() =>
-            localize("No data matches the current filters.")
-          }
-          suppressDragLeaveHidesColumns
+              suppressDragLeaveHidesColumns
+            />
+          </div>
+        </>
+      )}
+      {activeTab === "columns" && (
+        <ColumnManager
+          key={activeTab}
+          columns={rawColumns}
+          hiddenColumns={hiddenColumns}
+          onVisibilityChange={setColumnVisibility}
+          onBulkVisibilityChange={setColumnsVisible}
         />
-      </div>
+      )}
     </div>
   );
 };

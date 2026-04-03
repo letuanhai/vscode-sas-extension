@@ -12,6 +12,7 @@ import { WebView } from "./WebviewManager";
 export type ViewProperties = {
   columnState?: ColumnState[];
   query?: TableQuery;
+  hiddenColumns?: string[];
 };
 
 export const DATA_VIEWER_VIEW_TYPE = "SAS.dataViewer";
@@ -59,21 +60,36 @@ class DataViewer extends WebView {
       Ascending: l10n.t("Ascending"),
       Character: l10n.t("Character"),
       Clear: l10n.t("Clear"),
+      Columns: l10n.t("Columns"),
       Copy: l10n.t("Copy"),
+      "Copy all": l10n.t("Copy all"),
       "Copy as CSV": l10n.t("Copy as CSV"),
       "Copy column names": l10n.t("Copy column names"),
       Currency: l10n.t("Currency"),
+      Data: l10n.t("Data"),
       Date: l10n.t("Date"),
       Datetime: l10n.t("Datetime"),
       Descending: l10n.t("Descending"),
+      Format: l10n.t("Format"),
+      Informat: l10n.t("Informat"),
+      Invert: l10n.t("Invert"),
+      "Invert selection": l10n.t("Invert selection"),
+      Label: l10n.t("Label"),
+      Length: l10n.t("Length"),
+      Name: l10n.t("Name"),
       Numeric: l10n.t("Numeric"),
       Options: l10n.t("Options"),
       Pin: l10n.t("Pin"),
       "Press {0} to copy as CSV": l10n.t("Press {0} to copy as CSV"),
       Properties: l10n.t("Properties"),
-      Search: l10n.t("Search"),
+      "Search columns": l10n.t("Search columns"),
       "Select all": l10n.t("Select all"),
+      "Select all columns": l10n.t("Select all columns"),
+      "Deselect all columns": l10n.t("Deselect all columns"),
+      "Copy selected column names": l10n.t("Copy selected column names"),
+      "Copy all column names": l10n.t("Copy all column names"),
       Sort: l10n.t("Sort"),
+      Type: l10n.t("Type"),
     };
   }
 
