@@ -55,6 +55,7 @@ const DataViewer = () => {
     setColumnVisibility,
     setColumnsVisible,
     setOnColumnSelect,
+    showInputBox,
     totalRowCount,
     totalColumnCount,
     viewProperties,
@@ -144,15 +145,15 @@ const DataViewer = () => {
     }
   }, [gridRef]);
 
-  const handleFixedWidthColumns = useCallback(() => {
+  const handleFixedWidthColumns = useCallback(async () => {
     if (!gridRef.current?.api) {
       return;
     }
-    const input = prompt(
+    const input = await showInputBox(
       localize("Enter column width:"),
       String(defaultColumnWidth),
     );
-    if (input === null) {
+    if (input === undefined || input === "") {
       return;
     }
     const width = parseInt(input, 10);
@@ -165,7 +166,7 @@ const DataViewer = () => {
       newWidth: width,
     }));
     gridRef.current.api.setColumnWidths(columnWidths);
-  }, [gridRef, defaultColumnWidth]);
+  }, [gridRef, defaultColumnWidth, showInputBox]);
 
   useEffect(() => {
     setOnColumnSelect(onColumnSelect);

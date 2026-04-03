@@ -147,6 +147,9 @@ class DataViewer extends WebView {
         columnName?: string;
         viewProperties?: Partial<ViewProperties>;
         query: TableQuery | undefined;
+        prompt?: string;
+        value?: string;
+        placeHolder?: string;
       };
     },
   ): Promise<void> {
@@ -192,6 +195,22 @@ class DataViewer extends WebView {
           };
         }
         break;
+      case "request:clearViewProperties":
+        this.viewProperties = {};
+        break;
+      case "request:inputBox": {
+        const result = await window.showInputBox({
+          prompt: event.data?.prompt || "",
+          value: event.data?.value || "",
+          placeHolder: event.data?.placeHolder,
+        });
+        this.panel.webview.postMessage({
+          key: event.key,
+          command: "response:inputBox",
+          data: { value: result ?? undefined },
+        });
+        break;
+      }
       default:
         break;
     }

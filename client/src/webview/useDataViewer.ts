@@ -44,6 +44,37 @@ export const applyColumnState = (api: GridApi, state: ColumnState[]) => {
 
 const defaultTimeout = 60 * 1000; // 60 seconds (accounting for compute session expiration)
 
+const showInputBox = (
+  prompt: string,
+  value?: string,
+): Promise<string | undefined> => {
+  const requestKey = v4();
+  vscode.postMessage({
+    command: "request:inputBox",
+    key: requestKey,
+    data: { prompt, value },
+  });
+
+  return new Promise((resolve) => {
+    const commandHandler = (event) => {
+      if (event.data.key !== requestKey) {
+        return;
+      }
+      if (event.data.command === "response:inputBox") {
+        window.removeEventListener("message", commandHandler);
+        resolve(event.data.data?.value);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      window.removeEventListener("message", commandHandler);
+      resolve(undefined);
+    }, defaultTimeout);
+
+    window.addEventListener("message", commandHandler);
+  });
+};
+
 let queryTableDataTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const clearQueryTimeout = (): void => {
   if (!queryTableDataTimeoutId) {
@@ -531,6 +562,7 @@ const useDataViewer = () => {
         setHiddenColumns(new Set());
         setActiveTab("data");
         loadedViewPropertiesRef.current = {};
+        vscode.postMessage({ command: "request:clearViewProperties" });
       }
     };
     window.addEventListener("message", handleReset);
@@ -556,6 +588,7 @@ const useDataViewer = () => {
     setColumnVisibility,
     setColumnsVisible,
     setOnColumnSelect,
+    showInputBox,
     totalRowCount,
     totalColumnCount,
     viewProperties: () => loadedViewPropertiesRef.current,
