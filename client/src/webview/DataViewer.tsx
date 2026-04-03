@@ -41,6 +41,7 @@ const DataViewer = () => {
     setActiveTab,
     columnMenu,
     columns,
+    defaultColumnWidth,
     dismissMenu,
     getAllDataColumns,
     getOrderedColumns,
@@ -144,15 +145,27 @@ const DataViewer = () => {
   }, [gridRef]);
 
   const handleFixedWidthColumns = useCallback(() => {
-    if (gridRef.current?.api) {
-      const allCols = gridRef.current.api.getAllGridColumns();
-      const columnWidths = allCols.map((col) => ({
-        key: col.getColId(),
-        newWidth: 150,
-      }));
-      gridRef.current.api.setColumnWidths(columnWidths);
+    if (!gridRef.current?.api) {
+      return;
     }
-  }, [gridRef]);
+    const input = prompt(
+      localize("Enter column width:"),
+      String(defaultColumnWidth),
+    );
+    if (input === null) {
+      return;
+    }
+    const width = parseInt(input, 10);
+    if (isNaN(width) || width <= 0) {
+      return;
+    }
+    const allCols = gridRef.current.api.getAllGridColumns();
+    const columnWidths = allCols.map((col) => ({
+      key: col.getColId(),
+      newWidth: width,
+    }));
+    gridRef.current.api.setColumnWidths(columnWidths);
+  }, [gridRef, defaultColumnWidth]);
 
   useEffect(() => {
     setOnColumnSelect(onColumnSelect);
@@ -199,12 +212,13 @@ const DataViewer = () => {
           initialValue={viewProperties()?.query?.filterValue ?? ""}
         />
         <div className="column-width-toolbar">
+          <span className="toolbar-label">{localize("Resize columns:")}</span>
           <button
             type="button"
             onClick={handleAutoSizeColumns}
-            title={localize("Auto-size all columns")}
+            title={localize("Auto-resize all columns to fit content")}
           >
-            {localize("Auto-size")}
+            {localize("Fit content")}
           </button>
           <button
             type="button"

@@ -98,10 +98,15 @@ class DataViewer extends WebView {
       "Copy selected": l10n.t("Copy selected"),
       "Auto-size": l10n.t("Auto-size"),
       "Fixed width": l10n.t("Fixed width"),
-      "Auto-size all columns": l10n.t("Auto-size all columns"),
+      "Fit content": l10n.t("Fit content"),
+      "Resize columns:": l10n.t("Resize columns:"),
+      "Auto-resize all columns to fit content": l10n.t(
+        "Auto-resize all columns to fit content",
+      ),
       "Set all columns to fixed width": l10n.t(
         "Set all columns to fixed width",
       ),
+      "Enter column width:": l10n.t("Enter column width:"),
       Sort: l10n.t("Sort"),
       Type: l10n.t("Type"),
     };

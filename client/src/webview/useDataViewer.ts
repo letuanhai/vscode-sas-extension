@@ -146,6 +146,7 @@ const useDataViewer = () => {
   const [rawColumns, setRawColumns] = useState<Column[]>([]);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [orderedColumnNames, setOrderedColumnNames] = useState<string[]>([]);
+  const [defaultColumnWidth, setDefaultColumnWidth] = useState<number>(150);
   const setQueryParams = (query: TableQuery | undefined) => {
     setQueryParamsState(query);
     storeViewProperties({ query });
@@ -263,10 +264,17 @@ const useDataViewer = () => {
           setOrderedColumnNames(ordered);
         }
       }
+      const allGridCols = event.api.getAllGridColumns();
+      const firstDataCol = allGridCols.find((col) => col.getColId() !== "#");
+      if (firstDataCol) {
+        const width = firstDataCol.getActualWidth();
+        if (width && width > 0) {
+          setDefaultColumnWidth(width);
+        }
+      }
       const hidden = persistedHidden || Array.from(hiddenColumns);
       if (hidden.length > 0) {
-        const allCols = event.api
-          .getAllDisplayedColumns()
+        const allCols = allGridCols
           .map((col) => col.getColId())
           .filter((id) => id !== "#");
         const toHide = allCols.filter((id) => hidden.includes(id));
@@ -522,6 +530,7 @@ const useDataViewer = () => {
         setOrderedColumnNames([]);
         setHiddenColumns(new Set());
         setActiveTab("data");
+        loadedViewPropertiesRef.current = {};
       }
     };
     window.addEventListener("message", handleReset);
@@ -533,6 +542,7 @@ const useDataViewer = () => {
     setActiveTab,
     columnMenu,
     columns,
+    defaultColumnWidth,
     dismissMenu,
     getAllDataColumns,
     getOrderedColumns,
