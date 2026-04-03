@@ -96,6 +96,12 @@ class DataViewer extends WebView {
       "Move selected to top": l10n.t("Move selected to top"),
       "Move selected columns to top": l10n.t("Move selected columns to top"),
       "Copy selected": l10n.t("Copy selected"),
+      "Auto-size": l10n.t("Auto-size"),
+      "Fixed width": l10n.t("Fixed width"),
+      "Auto-size all columns": l10n.t("Auto-size all columns"),
+      "Set all columns to fixed width": l10n.t(
+        "Set all columns to fixed width",
+      ),
       Sort: l10n.t("Sort"),
       Type: l10n.t("Type"),
     };

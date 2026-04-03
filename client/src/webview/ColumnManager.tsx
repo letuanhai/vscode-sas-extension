@@ -24,6 +24,7 @@ const ColumnManager = ({
   const [searchValue, setSearchValue] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -110,8 +111,23 @@ const ColumnManager = ({
     await navigator.clipboard.writeText(all);
   };
 
-  const handleCheckboxChange = (columnName: string, checked: boolean) => {
-    onVisibilityChange(columnName, checked);
+  const handleCheckboxChange = (
+    columnName: string,
+    checked: boolean,
+    index: number,
+    shiftKey: boolean,
+  ) => {
+    if (shiftKey && lastClickedIndex !== null && lastClickedIndex !== index) {
+      const start = Math.min(lastClickedIndex, index);
+      const end = Math.max(lastClickedIndex, index);
+      const rangeNames = filteredColumns
+        .slice(start, end + 1)
+        .map((c) => c.name!);
+      onBulkVisibilityChange(rangeNames, checked);
+    } else {
+      onVisibilityChange(columnName, checked);
+    }
+    setLastClickedIndex(index);
   };
 
   const handleDragStart = (index: number) => {
@@ -257,8 +273,19 @@ const ColumnManager = ({
                   type="checkbox"
                   checked={isVisible}
                   onChange={(e) =>
-                    handleCheckboxChange(col.name!, e.target.checked)
+                    handleCheckboxChange(
+                      col.name!,
+                      e.target.checked,
+                      index,
+                      false,
+                    )
                   }
+                  onClick={(e) => {
+                    if (e.shiftKey) {
+                      e.stopPropagation();
+                      handleCheckboxChange(col.name!, !isVisible, index, true);
+                    }
+                  }}
                 />
               </div>
               <div className="col-name">

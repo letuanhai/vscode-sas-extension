@@ -19,29 +19,65 @@ body,
 }
 
 .data-viewer {
-  padding: 1rem;
+  padding: 0.5rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
 
-.row-count-bar {
+.title-bar {
+  margin-bottom: 0.25rem;
+}
+
+.table-title {
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.tab-bar-wrapper {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--vscode-editorGroup-border);
+}
+
+.tab-bar-info {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.25rem;
+  padding-right: 0.5rem;
 }
 
 .selection-hint {
   color: var(--vscode-textLink-foreground);
-  font-size: 0.85em;
+  font-size: 0.8em;
   font-style: italic;
 }
 
 .row-count {
   color: var(--vscode-descriptionForeground);
-  font-size: 1.1em;
+  font-size: 0.85em;
+}
+
+.column-width-toolbar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.column-width-toolbar button {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: 0.8em;
+}
+
+.column-width-toolbar button:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
 }
 
 .header-icon.float,
@@ -250,14 +286,12 @@ button,
 
 .tab-bar {
   display: flex;
-  border-bottom: 1px solid var(--vscode-editorGroup-border);
-  margin-bottom: 0.5rem;
 }
 
 .tab-bar button {
   background: transparent;
   border: none;
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.75rem;
   cursor: pointer;
   color: var(--vscode-foreground);
   font-size: 0.9em;

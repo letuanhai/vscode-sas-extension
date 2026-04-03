@@ -137,6 +137,23 @@ const DataViewer = () => {
     [selection, gridRef],
   );
 
+  const handleAutoSizeColumns = useCallback(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.autoSizeAllColumns();
+    }
+  }, [gridRef]);
+
+  const handleFixedWidthColumns = useCallback(() => {
+    if (gridRef.current?.api) {
+      const allCols = gridRef.current.api.getAllGridColumns();
+      const columnWidths = allCols.map((col) => ({
+        key: col.getColId(),
+        newWidth: 150,
+      }));
+      gridRef.current.api.setColumnWidths(columnWidths);
+    }
+  }, [gridRef]);
+
   useEffect(() => {
     setOnColumnSelect(onColumnSelect);
   }, [setOnColumnSelect, onColumnSelect]);
@@ -145,35 +162,35 @@ const DataViewer = () => {
     return null;
   }
 
+  const rowCountText = [
+    totalRowCount !== undefined ? `${totalRowCount} rows` : undefined,
+    totalColumnCount !== undefined ? `${totalColumnCount} columns` : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <div className="data-viewer">
-      <h1>{title}</h1>
-      {(totalRowCount !== undefined || totalColumnCount !== undefined) && (
-        <div className="row-count-bar">
+      <div className="title-bar">
+        <span className="table-title">{title}</span>
+      </div>
+      <div className="tab-bar-wrapper">
+        <TabBar
+          tabs={["Data", "Columns"]}
+          activeTab={activeTab}
+          onTabChange={(tab) =>
+            setActiveTab(tab.toLowerCase() as "data" | "columns")
+          }
+        />
+        <div className="tab-bar-info">
           {selection.hasSelection() && (
             <span className="selection-hint">
               {localize("Press {0} to copy as CSV", { "0": copyHintKey })}
             </span>
           )}
-          <span className="row-count">
-            {[
-              totalRowCount !== undefined ? `${totalRowCount} rows` : undefined,
-              totalColumnCount !== undefined
-                ? `${totalColumnCount} columns`
-                : undefined,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          </span>
+          {rowCountText && <span className="row-count">{rowCountText}</span>}
         </div>
-      )}
-      <TabBar
-        tabs={["Data", "Columns"]}
-        activeTab={activeTab}
-        onTabChange={(tab) =>
-          setActiveTab(tab.toLowerCase() as "data" | "columns")
-        }
-      />
+      </div>
       <div style={{ display: activeTab === "data" ? "contents" : "none" }}>
         <TableFilter
           onCommit={(value) => {
@@ -181,6 +198,22 @@ const DataViewer = () => {
           }}
           initialValue={viewProperties()?.query?.filterValue ?? ""}
         />
+        <div className="column-width-toolbar">
+          <button
+            type="button"
+            onClick={handleAutoSizeColumns}
+            title={localize("Auto-size all columns")}
+          >
+            {localize("Auto-size")}
+          </button>
+          <button
+            type="button"
+            onClick={handleFixedWidthColumns}
+            title={localize("Set all columns to fixed width")}
+          >
+            {localize("Fixed width")}
+          </button>
+        </div>
         {columnMenu && <ColumnMenu {...columnMenu} />}
         <div
           className={`ag-grid-wrapper ${theme}`}
