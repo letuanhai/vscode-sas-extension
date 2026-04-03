@@ -26,6 +26,9 @@ const gridStyles = {
   minHeight: 0,
 };
 
+const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+const copyHintKey = isMac ? "Cmd+C" : "Ctrl+C";
+
 const DataViewer = () => {
   const title = document
     .querySelector("[data-title]")
@@ -71,6 +74,7 @@ const DataViewer = () => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
         if (gridRef.current?.api) {
           event.preventDefault();
+          event.stopPropagation();
           const allDataCols = getAllDataColumns();
           const lastRow = gridRef.current.api.getDisplayedRowCount() - 1;
           selection.selectAll(lastRow, allDataCols);
@@ -135,6 +139,11 @@ const DataViewer = () => {
       <h1>{title}</h1>
       {(totalRowCount !== undefined || totalColumnCount !== undefined) && (
         <div className="row-count-bar">
+          {selection.hasSelection() && (
+            <span className="selection-hint">
+              {localize("Press {0} to copy", { "0": copyHintKey })}
+            </span>
+          )}
           <span className="row-count">
             {[
               totalRowCount !== undefined ? `${totalRowCount} rows` : undefined,
