@@ -43,8 +43,10 @@ const DataViewer = () => {
     columns,
     dismissMenu,
     getAllDataColumns,
+    getOrderedColumns,
     gridRef,
     hiddenColumns,
+    onColumnMoved,
     onGridReady,
     rawColumns,
     refreshResults,
@@ -167,72 +169,70 @@ const DataViewer = () => {
       <TabBar
         tabs={["Data", "Columns"]}
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab as "data" | "columns")}
+        onTabChange={(tab) =>
+          setActiveTab(tab.toLowerCase() as "data" | "columns")
+        }
       />
-      {activeTab === "data" && (
-        <>
-          <TableFilter
-            onCommit={(value) => {
-              refreshResults({ filterValue: value });
+      <div style={{ display: activeTab === "data" ? "contents" : "none" }}>
+        <TableFilter
+          onCommit={(value) => {
+            refreshResults({ filterValue: value });
+          }}
+          initialValue={viewProperties()?.query?.filterValue ?? ""}
+        />
+        {columnMenu && <ColumnMenu {...columnMenu} />}
+        <div
+          className={`ag-grid-wrapper ${theme}`}
+          style={gridStyles}
+          onClick={() => columnMenu && dismissMenuWithoutFocus()}
+        >
+          <AgGridReact
+            ref={gridRef}
+            cacheBlockSize={100}
+            columnDefs={columns}
+            context={{
+              isCellSelected: selection.isCellSelected,
+              isColumnSelected: (col: string) => {
+                const sel = selection.selection;
+                if (!sel.anchor || !sel.end || !sel.mode) {
+                  return false;
+                }
+                if (sel.mode !== "column" && sel.mode !== "range") {
+                  return false;
+                }
+                const allCols = getAllDataColumns();
+                const startIdx = allCols.indexOf(sel.anchor.col);
+                const endIdx = allCols.indexOf(sel.end.col);
+                const colIdx = allCols.indexOf(col);
+                if (startIdx === -1 || endIdx === -1 || colIdx === -1) {
+                  return false;
+                }
+                const [lo, hi] =
+                  startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+                return colIdx >= lo && colIdx <= hi;
+              },
             }}
-            initialValue={viewProperties()?.query?.filterValue ?? ""}
+            defaultColDef={{
+              sortable: true,
+            }}
+            maintainColumnOrder
+            infiniteInitialRowCount={100}
+            maxBlocksInCache={10}
+            onGridReady={onGridReady}
+            onCellClicked={onCellClicked}
+            onColumnMoved={onColumnMoved}
+            rowModelType="infinite"
+            theme="legacy"
+            noRowsOverlayComponent={() =>
+              localize("No data matches the current filters.")
+            }
+            suppressDragLeaveHidesColumns
           />
-          {columnMenu && <ColumnMenu {...columnMenu} />}
-          <div
-            className={`ag-grid-wrapper ${theme}`}
-            style={gridStyles}
-            onClick={() => columnMenu && dismissMenuWithoutFocus()}
-          >
-            <AgGridReact
-              ref={gridRef}
-              cacheBlockSize={100}
-              columnDefs={columns}
-              context={{
-                isCellSelected: selection.isCellSelected,
-                isColumnSelected: (col: string) => {
-                  const sel = selection.selection;
-                  if (!sel.anchor || !sel.end || !sel.mode) {
-                    return false;
-                  }
-                  if (sel.mode !== "column" && sel.mode !== "range") {
-                    return false;
-                  }
-                  const allCols = getAllDataColumns();
-                  const startIdx = allCols.indexOf(sel.anchor.col);
-                  const endIdx = allCols.indexOf(sel.end.col);
-                  const colIdx = allCols.indexOf(col);
-                  if (startIdx === -1 || endIdx === -1 || colIdx === -1) {
-                    return false;
-                  }
-                  const [lo, hi] =
-                    startIdx <= endIdx
-                      ? [startIdx, endIdx]
-                      : [endIdx, startIdx];
-                  return colIdx >= lo && colIdx <= hi;
-                },
-              }}
-              defaultColDef={{
-                sortable: true,
-              }}
-              maintainColumnOrder
-              infiniteInitialRowCount={100}
-              maxBlocksInCache={10}
-              onGridReady={onGridReady}
-              onCellClicked={onCellClicked}
-              rowModelType="infinite"
-              theme="legacy"
-              noRowsOverlayComponent={() =>
-                localize("No data matches the current filters.")
-              }
-              suppressDragLeaveHidesColumns
-            />
-          </div>
-        </>
-      )}
+        </div>
+      </div>
       {activeTab === "columns" && (
         <ColumnManager
-          key={activeTab}
-          columns={rawColumns}
+          columns={getOrderedColumns()}
           hiddenColumns={hiddenColumns}
           onVisibilityChange={setColumnVisibility}
           onBulkVisibilityChange={setColumnsVisible}

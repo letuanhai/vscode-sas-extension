@@ -145,6 +145,7 @@ const useDataViewer = () => {
   const [activeTab, setActiveTab] = useState<"data" | "columns">("data");
   const [rawColumns, setRawColumns] = useState<Column[]>([]);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [orderedColumnNames, setOrderedColumnNames] = useState<string[]>([]);
   const setQueryParams = (query: TableQuery | undefined) => {
     setQueryParamsState(query);
     storeViewProperties({ query });
@@ -165,6 +166,31 @@ const useDataViewer = () => {
       .filter((col) => col.field && col.field !== "#")
       .map((col) => col.field as string);
   }, [columns]);
+
+  const getOrderedColumns = useCallback(() => {
+    if (orderedColumnNames.length === 0) {
+      return rawColumns;
+    }
+    const orderMap = new Map(
+      orderedColumnNames.map((name, idx) => [name, idx]),
+    );
+    return [...rawColumns].sort((a, b) => {
+      const orderA = orderMap.get(a.name!) ?? Infinity;
+      const orderB = orderMap.get(b.name!) ?? Infinity;
+      return orderA - orderB;
+    });
+  }, [rawColumns, orderedColumnNames]);
+
+  const onColumnMoved = useCallback(() => {
+    if (!gridRef.current?.api) {
+      return;
+    }
+    const displayedCols = gridRef.current.api
+      .getAllDisplayedColumns()
+      .filter((col) => col.getColId() !== "#")
+      .map((col) => col.getColId());
+    setOrderedColumnNames(displayedCols);
+  }, []);
 
   const dataSource = useCallback(
     (incomingQueryParams?: TableQuery) => ({
@@ -212,7 +238,11 @@ const useDataViewer = () => {
 
   const onGridReady = useCallback(
     (event: GridReadyEvent) => {
-      const { columnState, query } = loadedViewPropertiesRef.current;
+      const {
+        columnState,
+        query,
+        hiddenColumns: persistedHidden,
+      } = loadedViewPropertiesRef.current;
       event.api.setGridOption("datasource", dataSource(query));
 
       // Re-hydrate our view with persisted view properties
@@ -226,9 +256,26 @@ const useDataViewer = () => {
         applyColumnState(event.api, columnState);
         event.api.refreshHeader();
         columnStateRef.current = undefined;
+        const ordered = columnState
+          .filter((c) => c.colId !== "#")
+          .map((c) => c.colId);
+        if (ordered.length > 0) {
+          setOrderedColumnNames(ordered);
+        }
+      }
+      const hidden = persistedHidden || Array.from(hiddenColumns);
+      if (hidden.length > 0) {
+        const allCols = event.api
+          .getAllDisplayedColumns()
+          .map((col) => col.getColId())
+          .filter((id) => id !== "#");
+        const toHide = allCols.filter((id) => hidden.includes(id));
+        if (toHide.length > 0) {
+          event.api.setColumnsVisible(toHide, false);
+        }
       }
     },
-    [dataSource],
+    [dataSource, hiddenColumns],
   );
 
   const dismissMenu = (focusColumn: boolean = true) => {
@@ -280,10 +327,11 @@ const useDataViewer = () => {
 
   const setColumnsVisible = useCallback(
     (columnNames: string[], visible: boolean) => {
-      if (!gridRef.current?.api) {
-        return;
+      const api = gridRef.current?.api;
+      if (api) {
+        api.setColumnsVisible(columnNames, visible);
+        api.refreshHeader();
       }
-      gridRef.current.api.setColumnsVisible(columnNames, visible);
       setHiddenColumns((prev) => {
         const next = new Set(prev);
         if (visible) {
@@ -451,8 +499,10 @@ const useDataViewer = () => {
     columns,
     dismissMenu,
     getAllDataColumns,
+    getOrderedColumns,
     gridRef,
     hiddenColumns,
+    onColumnMoved,
     onGridReady,
     rawColumns,
     refreshResults,
