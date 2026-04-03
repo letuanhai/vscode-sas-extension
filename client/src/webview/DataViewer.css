@@ -225,3 +225,17 @@ button,
   background: url(../../../icons/light/search.svg) center no-repeat;
   background-size: 16px 16px;
 }
+
+.ag-cell.dv-selected {
+  background-color: var(
+    --vscode-editor-selectionBackground,
+    rgba(0, 120, 215, 0.3)
+  );
+}
+
+.ag-header-cell.dv-col-selected {
+  background-color: var(
+    --vscode-editor-selectionBackground,
+    rgba(0, 120, 215, 0.3)
+  );
+}

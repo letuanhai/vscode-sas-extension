@@ -51,12 +51,14 @@ const ColumnHeader = ({
   currentColumn: getCurrentColumn,
   columnType,
   displayMenuForColumn,
+  onColumnSelect,
 }: {
   api: GridApi;
   column: AgColumn;
   currentColumn: () => AgColumn | undefined;
   columnType: string;
   displayMenuForColumn: (api: GridApi, column: AgColumn, rect: DOMRect) => void;
+  onColumnSelect?: (colId: string, shiftKey: boolean) => void;
 }) => {
   const theme = useTheme();
   const ref = useRef<HTMLButtonElement>(undefined!);
@@ -82,7 +84,13 @@ const ColumnHeader = ({
           className={`header-icon ${getIconForColumnType(columnType)}`}
           title={getTermForColumnType(columnType)}
         />
-        <span className="ag-header-cell-text" title={column.colId}>
+        <span
+          className="ag-header-cell-text"
+          title={column.colId}
+          onClick={(e) => {
+            onColumnSelect?.(column.colId, e.shiftKey);
+          }}
+        >
           {column.colId}
         </span>
         <span className="sort-icon-wrapper">

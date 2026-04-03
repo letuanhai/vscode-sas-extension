@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 
+import { CellClickedEvent } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 import ".";
@@ -10,6 +11,7 @@ import ColumnMenu from "./ColumnMenu";
 import TableFilter from "./TableFilter";
 import localize from "./localize";
 import useDataViewer from "./useDataViewer";
+import useSelection, { getSelectedDataAsCSV } from "./useSelection";
 import useTheme from "./useTheme";
 
 import "./DataViewer.css";
@@ -33,21 +35,51 @@ const DataViewer = () => {
     columnMenu,
     columns,
     dismissMenu,
+    getAllDataColumns,
     gridRef,
     onGridReady,
     refreshResults,
+    setOnColumnSelect,
     totalRowCount,
     totalColumnCount,
     viewProperties,
   } = useDataViewer();
 
+  const selection = useSelection(getAllDataColumns);
+
   const handleKeydown = useCallback(
-    (event) => {
-      if (event.key === "Escape" && columnMenu) {
-        dismissMenu();
+    (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (columnMenu) {
+          dismissMenu();
+        } else if (selection.hasSelection()) {
+          selection.clearSelection();
+          gridRef.current?.api.refreshCells({ force: true });
+        }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+        if (selection.hasSelection() && gridRef.current?.api) {
+          event.preventDefault();
+          const csv = getSelectedDataAsCSV(
+            selection.selection,
+            gridRef.current.api,
+            getAllDataColumns(),
+          );
+          navigator.clipboard.writeText(csv);
+        }
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+        if (gridRef.current?.api) {
+          event.preventDefault();
+          const allDataCols = getAllDataColumns();
+          const lastRow = gridRef.current.api.getDisplayedRowCount() - 1;
+          selection.selectAll(lastRow, allDataCols);
+          gridRef.current.api.refreshCells({ force: true });
+          gridRef.current.api.refreshHeader();
+        }
       }
     },
-    [columnMenu, dismissMenu],
+    [columnMenu, dismissMenu, selection, gridRef, getAllDataColumns],
   );
   const dismissMenuWithoutFocus = useCallback(
     () => dismissMenu(false),
@@ -62,6 +94,37 @@ const DataViewer = () => {
       window.removeEventListener("blur", dismissMenuWithoutFocus);
     };
   }, [handleKeydown, dismissMenuWithoutFocus]);
+
+  const onCellClicked = useCallback(
+    (event: CellClickedEvent) => {
+      const rowIndex = event.rowIndex;
+      const colField = event.colDef.field;
+      if (rowIndex === null || rowIndex === undefined || !colField) {
+        return;
+      }
+      const shiftKey =
+        (event.event as MouseEvent | undefined)?.shiftKey ?? false;
+      if (colField === "#") {
+        selection.selectRow(rowIndex, shiftKey);
+      } else {
+        selection.selectCell(rowIndex, colField, shiftKey);
+      }
+      gridRef.current?.api.refreshCells({ force: true });
+    },
+    [selection, gridRef],
+  );
+
+  const onColumnSelect = useCallback(
+    (colId: string, shiftKey: boolean) => {
+      selection.selectColumn(colId, shiftKey);
+      gridRef.current?.api.refreshCells({ force: true });
+    },
+    [selection, gridRef],
+  );
+
+  useEffect(() => {
+    setOnColumnSelect(onColumnSelect);
+  }, [setOnColumnSelect, onColumnSelect]);
 
   if (columns.length === 0) {
     return null;
@@ -100,6 +163,28 @@ const DataViewer = () => {
           ref={gridRef}
           cacheBlockSize={100}
           columnDefs={columns}
+          context={{
+            isCellSelected: selection.isCellSelected,
+            isColumnSelected: (col: string) => {
+              const sel = selection.selection;
+              if (!sel.anchor || !sel.end || !sel.mode) {
+                return false;
+              }
+              if (sel.mode !== "column" && sel.mode !== "range") {
+                return false;
+              }
+              const allCols = getAllDataColumns();
+              const startIdx = allCols.indexOf(sel.anchor.col);
+              const endIdx = allCols.indexOf(sel.end.col);
+              const colIdx = allCols.indexOf(col);
+              if (startIdx === -1 || endIdx === -1 || colIdx === -1) {
+                return false;
+              }
+              const [lo, hi] =
+                startIdx <= endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+              return colIdx >= lo && colIdx <= hi;
+            },
+          }}
           defaultColDef={{
             sortable: true,
           }}
@@ -107,6 +192,7 @@ const DataViewer = () => {
           infiniteInitialRowCount={100}
           maxBlocksInCache={10}
           onGridReady={onGridReady}
+          onCellClicked={onCellClicked}
           rowModelType="infinite"
           theme="legacy"
           noRowsOverlayComponent={() =>

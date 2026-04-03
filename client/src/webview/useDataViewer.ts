@@ -150,9 +150,18 @@ const useDataViewer = () => {
   const columnMenuRef = useRef<ColumnMenuProps | undefined>(columnMenu);
   const columnStateRef = useRef<ColumnState[] | undefined>(undefined);
   const loadedViewPropertiesRef = useRef<ViewProperties | undefined>(undefined);
+  const onColumnSelectRef = useRef<
+    ((colId: string, shiftKey: boolean) => void) | undefined
+  >(undefined);
   useEffect(() => {
     columnMenuRef.current = columnMenu;
   }, [columnMenu]);
+
+  const getAllDataColumns = useCallback(() => {
+    return columns
+      .filter((col) => col.field && col.field !== "#")
+      .map((col) => col.field as string);
+  }, [columns]);
 
   const dataSource = useCallback(
     (incomingQueryParams?: TableQuery) => ({
@@ -259,79 +268,125 @@ const useDataViewer = () => {
     [],
   );
 
+  const setOnColumnSelect = useCallback(
+    (callback: (colId: string, shiftKey: boolean) => void) => {
+      onColumnSelectRef.current = callback;
+    },
+    [],
+  );
+
   useEffect(() => {
     if (columns.length > 0) {
       return;
     }
 
-    fetchColumns().then(({ columns: columnsData, viewProperties, rowCount, columnCount }) => {
-      if (viewProperties.columnState && viewProperties.columnState.length > 0) {
-        columnStateRef.current = viewProperties.columnState;
-      }
-      loadedViewPropertiesRef.current = viewProperties;
-      if (rowCount !== undefined) {
-        setTotalRowCount(rowCount);
-      }
-      if (columnCount !== undefined) {
-        setTotalColumnCount(columnCount);
-      }
+    fetchColumns().then(
+      ({ columns: columnsData, viewProperties, rowCount, columnCount }) => {
+        if (
+          viewProperties.columnState &&
+          viewProperties.columnState.length > 0
+        ) {
+          columnStateRef.current = viewProperties.columnState;
+        }
+        loadedViewPropertiesRef.current = viewProperties;
+        if (rowCount !== undefined) {
+          setTotalRowCount(rowCount);
+        }
+        if (columnCount !== undefined) {
+          setTotalColumnCount(columnCount);
+        }
 
-      const columns: ColDef[] = columnsData.map((column) => ({
-        field: column.name,
-        headerComponent: ColumnHeader,
-        headerComponentParams: {
-          columnType: column.type,
-          currentColumn: () => columnMenuRef.current?.column,
-          displayMenuForColumn,
-        },
-        suppressHeaderKeyboardEvent: (
-          params: SuppressHeaderKeyboardEventParams,
-        ) => {
-          // If a user tabs to a different column, dismiss the column menu
-          if (params.event.key === "Tab") {
-            setColumnMenu(undefined);
-            return false;
-          }
-          if (
-            params.event.key === "Enter" ||
-            (params.event.key === "F10" && params.event.shiftKey)
-          ) {
-            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-            const dropdown = (params.event.target as HTMLElement).querySelector(
-              ".dropdown",
-            );
-            if (!dropdown) {
+        const columns: ColDef[] = columnsData.map((column) => ({
+          field: column.name,
+          headerComponent: ColumnHeader,
+          headerComponentParams: {
+            columnType: column.type,
+            currentColumn: () => columnMenuRef.current?.column,
+            displayMenuForColumn,
+            onColumnSelect: (colId: string, shiftKey: boolean) => {
+              onColumnSelectRef.current?.(colId, shiftKey);
+            },
+          },
+          cellClassRules: {
+            "dv-selected": (params) => {
+              const isRowSelected = (
+                params.context as {
+                  isCellSelected?: (row: number, col: string) => boolean;
+                }
+              )?.isCellSelected;
+              if (
+                isRowSelected &&
+                params.rowIndex !== null &&
+                params.rowIndex !== undefined
+              ) {
+                return isRowSelected(
+                  params.rowIndex,
+                  params.colDef.field as string,
+                );
+              }
+              return false;
+            },
+          },
+          headerClassRules: {
+            "dv-col-selected": (params) => {
+              const context = params.context as {
+                isColumnSelected?: (col: string) => boolean;
+              };
+              if (context?.isColumnSelected && params.colDef.field) {
+                return context.isColumnSelected(params.colDef.field);
+              }
+              return false;
+            },
+          },
+          suppressHeaderKeyboardEvent: (
+            params: SuppressHeaderKeyboardEventParams,
+          ) => {
+            // If a user tabs to a different column, dismiss the column menu
+            if (params.event.key === "Tab") {
+              setColumnMenu(undefined);
+              return false;
+            }
+            if (
+              params.event.key === "Enter" ||
+              (params.event.key === "F10" && params.event.shiftKey)
+            ) {
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              const dropdown = (
+                params.event.target as HTMLElement
+              ).querySelector(".dropdown");
+              if (!dropdown) {
+                return true;
+              }
+              if (!dropdown.classList.contains("active")) {
+                dropdown.classList.add("active");
+              }
+              const dropdownButton = dropdown.querySelector("button");
+              displayMenuForColumn(
+                params.api,
+                // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+                params.column as AgColumn,
+                dropdownButton.getBoundingClientRect(),
+              );
+              params.event.stopPropagation();
               return true;
             }
-            if (!dropdown.classList.contains("active")) {
-              dropdown.classList.add("active");
-            }
-            const dropdownButton = dropdown.querySelector("button");
-            displayMenuForColumn(
-              params.api,
-              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-              params.column as AgColumn,
-              dropdownButton.getBoundingClientRect(),
-            );
-            params.event.stopPropagation();
-            return true;
-          }
-          return false;
-        },
-      }));
+            return false;
+          },
+        }));
 
-      columns.unshift({
-        field: "#",
-        headerTooltip: localize("Row number"),
-        pinned: "left",
-        lockPinned: true,
-        lockPosition: true,
-        sortable: false,
-        suppressMovable: true,
-      });
+        columns.unshift({
+          field: "#",
+          headerTooltip: localize("Row number"),
+          pinned: "left",
+          lockPinned: true,
+          lockPosition: true,
+          sortable: false,
+          suppressMovable: true,
+        });
 
-      setColumns(columns);
-    });
+        setColumns(columns);
+      },
+    );
   }, [columns.length, displayMenuForColumn]);
 
   useEffect(() => {
@@ -358,9 +413,11 @@ const useDataViewer = () => {
     columnMenu,
     columns,
     dismissMenu,
+    getAllDataColumns,
     gridRef,
     onGridReady,
     refreshResults,
+    setOnColumnSelect,
     totalRowCount,
     totalColumnCount,
     viewProperties: () => loadedViewPropertiesRef.current,

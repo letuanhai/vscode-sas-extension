@@ -59,6 +59,9 @@ class DataViewer extends WebView {
       Ascending: l10n.t("Ascending"),
       Character: l10n.t("Character"),
       Clear: l10n.t("Clear"),
+      Copy: l10n.t("Copy"),
+      "Copy as CSV": l10n.t("Copy as CSV"),
+      "Copy column names": l10n.t("Copy column names"),
       Currency: l10n.t("Currency"),
       Date: l10n.t("Date"),
       Datetime: l10n.t("Datetime"),
@@ -68,6 +71,7 @@ class DataViewer extends WebView {
       Pin: l10n.t("Pin"),
       Properties: l10n.t("Properties"),
       Search: l10n.t("Search"),
+      "Select all": l10n.t("Select all"),
       Sort: l10n.t("Sort"),
     };
   }
