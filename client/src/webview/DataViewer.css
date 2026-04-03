@@ -302,8 +302,20 @@ button,
 
 .column-manager-toolbar {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   padding: 0.5rem 0;
+  align-items: center;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.toolbar-divider {
+  width: 1px;
+  background: var(--vscode-editorGroup-border);
+  margin: 0 0.25rem;
 }
 
 .column-manager-toolbar button {

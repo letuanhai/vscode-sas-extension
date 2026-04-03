@@ -25,6 +25,7 @@ const ColumnManager = ({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     searchInputRef.current?.focus();
   }, []);
@@ -66,6 +67,34 @@ const ColumnManager = ({
     if (toHide.length > 0) {
       onBulkVisibilityChange(toHide, false);
     }
+  };
+
+  const handleSortAZ = () => {
+    const sorted = [...columns].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || ""),
+    );
+    onColumnOrderChange?.(sorted.map((c) => c.name!));
+  };
+
+  const handleSortZA = () => {
+    const sorted = [...columns].sort((a, b) =>
+      (b.name || "").localeCompare(a.name || ""),
+    );
+    onColumnOrderChange?.(sorted.map((c) => c.name!));
+  };
+
+  const handleMoveSelectedToTop = () => {
+    const visible: Column[] = [];
+    const hidden: Column[] = [];
+    columns.forEach((col) => {
+      if (hiddenColumns.has(col.name!)) {
+        hidden.push(col);
+      } else {
+        visible.push(col);
+      }
+    });
+    const reordered = [...visible, ...hidden];
+    onColumnOrderChange?.(reordered.map((c) => c.name!));
   };
 
   const handleCopySelected = async () => {
@@ -132,41 +161,70 @@ const ColumnManager = ({
         />
       </div>
       <div className="column-manager-toolbar">
-        <button
-          type="button"
-          onClick={handleSelectAll}
-          title={localize("Select all columns")}
-        >
-          {localize("Select all")}
-        </button>
-        <button
-          type="button"
-          onClick={handleDeselectAll}
-          title={localize("Deselect all columns")}
-        >
-          {localize("Deselect all columns")}
-        </button>
-        <button
-          type="button"
-          onClick={handleInvertSelection}
-          title={localize("Invert selection")}
-        >
-          {localize("Invert selection")}
-        </button>
-        <button
-          type="button"
-          onClick={handleCopySelected}
-          title={localize("Copy selected column names")}
-        >
-          {localize("Copy selected column names")}
-        </button>
-        <button
-          type="button"
-          onClick={handleCopyAll}
-          title={localize("Copy all column names")}
-        >
-          {localize("Copy all")}
-        </button>
+        <div className="toolbar-group">
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            title={localize("Select all columns")}
+          >
+            {localize("Select all")}
+          </button>
+          <button
+            type="button"
+            onClick={handleDeselectAll}
+            title={localize("Deselect all columns")}
+          >
+            {localize("Deselect all")}
+          </button>
+          <button
+            type="button"
+            onClick={handleInvertSelection}
+            title={localize("Invert selection")}
+          >
+            {localize("Invert")}
+          </button>
+        </div>
+        <div className="toolbar-divider" />
+        <div className="toolbar-group">
+          <button
+            type="button"
+            onClick={handleSortAZ}
+            title={localize("Sort columns A-Z")}
+          >
+            {localize("Sort A-Z")}
+          </button>
+          <button
+            type="button"
+            onClick={handleSortZA}
+            title={localize("Sort columns Z-A")}
+          >
+            {localize("Sort Z-A")}
+          </button>
+          <button
+            type="button"
+            onClick={handleMoveSelectedToTop}
+            title={localize("Move selected columns to top")}
+          >
+            {localize("Move selected to top")}
+          </button>
+        </div>
+        <div className="toolbar-divider" />
+        <div className="toolbar-group">
+          <button
+            type="button"
+            onClick={handleCopySelected}
+            title={localize("Copy selected column names")}
+          >
+            {localize("Copy selected")}
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyAll}
+            title={localize("Copy all column names")}
+          >
+            {localize("Copy all")}
+          </button>
+        </div>
       </div>
       <div className="column-manager-list">
         <div className="column-manager-header">

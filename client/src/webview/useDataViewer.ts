@@ -185,11 +185,11 @@ const useDataViewer = () => {
     if (!gridRef.current?.api) {
       return;
     }
-    const displayedCols = gridRef.current.api
-      .getAllDisplayedColumns()
+    const allCols = gridRef.current.api
+      .getAllGridColumns()
       .filter((col) => col.getColId() !== "#")
       .map((col) => col.getColId());
-    setOrderedColumnNames(displayedCols);
+    setOrderedColumnNames(allCols);
   }, []);
 
   const dataSource = useCallback(
@@ -357,9 +357,17 @@ const useDataViewer = () => {
     (columnNames: string[]) => {
       const api = gridRef.current?.api;
       if (api) {
-        const columnState = columnNames.map((name, index) => ({
+        const allColumnNames = api
+          .getAllGridColumns()
+          .map((col) => col.getColId())
+          .filter((id) => id !== "#");
+        const missingColumns = allColumnNames.filter(
+          (name) => !columnNames.includes(name),
+        );
+        const fullOrder = ["#", ...columnNames, ...missingColumns];
+        const columnState = fullOrder.map((name) => ({
           colId: name,
-          hide: hiddenColumns.has(name),
+          hide: name !== "#" && hiddenColumns.has(name),
         }));
         api.applyColumnState({
           state: columnState,
@@ -369,7 +377,7 @@ const useDataViewer = () => {
       }
       setOrderedColumnNames(columnNames);
       storeViewProperties({
-        columnState: columnNames.map((name, index) => ({
+        columnState: columnNames.map((name) => ({
           colId: name,
           hide: hiddenColumns.has(name),
         })),

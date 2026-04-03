@@ -89,6 +89,13 @@ class DataViewer extends WebView {
       "Copy selected column names": l10n.t("Copy selected column names"),
       "Copy all column names": l10n.t("Copy all column names"),
       "Drag to reorder": l10n.t("Drag to reorder"),
+      "Sort A-Z": l10n.t("Sort A-Z"),
+      "Sort Z-A": l10n.t("Sort Z-A"),
+      "Sort columns A-Z": l10n.t("Sort columns A-Z"),
+      "Sort columns Z-A": l10n.t("Sort columns Z-A"),
+      "Move selected to top": l10n.t("Move selected to top"),
+      "Move selected columns to top": l10n.t("Move selected columns to top"),
+      "Copy selected": l10n.t("Copy selected"),
       Sort: l10n.t("Sort"),
       Type: l10n.t("Type"),
     };
