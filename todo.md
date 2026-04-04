@@ -27,4 +27,4 @@
 - [ ] 16. Improve DataViewer panel — see `docs/task-16-dataviewer-improvement-spec.md` for full spec
   - [x] 16.1. Custom cell/row/column/range selection layer with Ctrl/Cmd+C copy (useSelection.ts)
   - [x] 16.2. Column management tab (ColumnManager.tsx + TabBar.tsx) — search, visibility toggles, copy column names
-  - [ ] 16.3. SQLite3 Editor integration — generate CREATE TABLE + INSERT SQL, copy to clipboard or execute via query-editor
+  - [x] 16.3. SQLite3 Editor integration — generate CREATE TABLE + INSERT SQL, copy to clipboard or execute via query-editor

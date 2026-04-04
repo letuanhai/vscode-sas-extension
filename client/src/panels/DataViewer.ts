@@ -1,10 +1,12 @@
 // Copyright © 2023, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { Uri, l10n, window } from "vscode";
+import { commands, env, extensions, l10n, window, workspace } from "vscode";
+import type { Uri } from "vscode";
 
 import type { ColumnState, SortModelItem } from "ag-grid-community";
 
 import PaginatedResultSet from "../components/LibraryNavigator/PaginatedResultSet";
+import { generateSQLiteSQL } from "../components/LibraryNavigator/sqliteExport";
 import { TableData, TableQuery } from "../components/LibraryNavigator/types";
 import { Column } from "../connection/rest/api/compute";
 import { WebView } from "./WebviewManager";
@@ -109,6 +111,16 @@ class DataViewer extends WebView {
       "Enter column width:": l10n.t("Enter column width:"),
       Sort: l10n.t("Sort"),
       Type: l10n.t("Type"),
+      "Open in SQLite Editor": l10n.t("Open in SQLite Editor"),
+      "Copy SQLite SQL": l10n.t("Copy SQLite SQL"),
+      "SQLite SQL copied to clipboard ({count} rows)": l10n.t(
+        "SQLite SQL copied to clipboard ({count} rows)",
+      ),
+      "Export rows to SQLite": l10n.t("Export rows to SQLite"),
+      "SQLite3 Editor extension is required. Install it?": l10n.t(
+        "SQLite3 Editor extension is required. Install it?",
+      ),
+      Install: l10n.t("Install"),
     };
   }
 
@@ -150,6 +162,8 @@ class DataViewer extends WebView {
         prompt?: string;
         value?: string;
         placeHolder?: string;
+        columns?: Column[];
+        rows?: string[][];
       };
     },
   ): Promise<void> {
@@ -211,8 +225,83 @@ class DataViewer extends WebView {
         });
         break;
       }
+      case "request:copySQLiteSQL":
+        await this.copySQLiteSQL(event.data?.columns, event.data?.rows);
+        break;
+      case "request:openInSQLite":
+        await this.openInSQLite(event.data?.columns, event.data?.rows);
+        break;
       default:
         break;
+    }
+  }
+
+  public async copySQLiteSQL(
+    columns?: Column[],
+    rows?: string[][],
+  ): Promise<void> {
+    if (!columns?.length || !rows) return;
+    const sql = generateSQLiteSQL({
+      tableName: this.title,
+      columns,
+      rows,
+      includeDropTable: true,
+    });
+
+    await env.clipboard.writeText(sql);
+    await window.showInformationMessage(
+      l10n.t("SQLite SQL copied to clipboard ({count} rows)", {
+        count: rows.length,
+      }),
+    );
+  }
+
+  public async openInSQLite(
+    columns?: Column[],
+    rows?: string[][],
+  ): Promise<void> {
+    const sqlite3Editor = extensions.getExtension(
+      "yy0931.vscode-sqlite3-editor",
+    );
+    if (!sqlite3Editor) {
+      const action = await window.showInformationMessage(
+        l10n.t("SQLite3 Editor extension is required. Install it?"),
+        l10n.t("Install"),
+      );
+      if (action === l10n.t("Install")) {
+        await commands.executeCommand(
+          "workbench.extensions.installExtension",
+          "yy0931.vscode-sqlite3-editor",
+        );
+      }
+      return;
+    }
+
+    if (!columns?.length || !rows) return;
+    const sql = generateSQLiteSQL({
+      tableName: this.title,
+      columns,
+      rows,
+      includeDropTable: true,
+    });
+
+    // Open in-memory SQLite database
+    await commands.executeCommand("sqlite3-editor.openInMemoryDatabase");
+
+    // Create an untitled document with the SQL content.
+    // The "-- database: :memory:" directive tells SQLite3 Editor to target
+    // the in-memory database opened above.
+    const doc = await workspace.openTextDocument({
+      language: "query-editor",
+      content: `-- database: :memory:\n${sql}`,
+    });
+    await window.showTextDocument(doc);
+
+    // Execute the script in SQLite3 Editor
+    try {
+      await commands.executeCommand("sqlite3-editor.executescript");
+    } catch {
+      // If executescript is not available, the user can run it manually.
     }
   }
 }

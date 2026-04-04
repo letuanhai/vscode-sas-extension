@@ -12,7 +12,7 @@ import ColumnMenu from "./ColumnMenu";
 import TabBar from "./TabBar";
 import TableFilter from "./TableFilter";
 import localize from "./localize";
-import useDataViewer from "./useDataViewer";
+import useDataViewer, { postCommand } from "./useDataViewer";
 import useSelection, { getSelectedDataAsCSV } from "./useSelection";
 import useTheme from "./useTheme";
 
@@ -102,6 +102,21 @@ const DataViewer = () => {
     () => dismissMenu(false),
     [dismissMenu],
   );
+
+  const getSQLiteExportData = useCallback(() => {
+    const api = gridRef.current?.api;
+    if (!api) return null;
+    const colNames = getAllDataColumns();
+    const rows: string[][] = [];
+    const count = api.getDisplayedRowCount();
+    for (let i = 0; i < count; i++) {
+      const rowNode = api.getDisplayedRowAtIndex(i);
+      if (!rowNode?.data) continue;
+      rows.push(colNames.map((col) => String(rowNode.data[col] ?? "")));
+    }
+    const columns = rawColumns.filter((c) => colNames.includes(c.name));
+    return { columns, rows };
+  }, [gridRef, getAllDataColumns, rawColumns]);
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeydown);
@@ -227,6 +242,21 @@ const DataViewer = () => {
             title={localize("Set all columns to fixed width")}
           >
             {localize("Fixed width")}
+          </button>
+          <span className="toolbar-separator" />
+          <button
+            type="button"
+            onClick={() => postCommand("request:copySQLiteSQL", getSQLiteExportData())}
+            title={localize("Copy SQLite SQL")}
+          >
+            {localize("Copy SQLite SQL")}
+          </button>
+          <button
+            type="button"
+            onClick={() => postCommand("request:openInSQLite", getSQLiteExportData())}
+            title={localize("Open in SQLite Editor")}
+          >
+            {localize("Open in SQLite Editor")}
           </button>
         </div>
         {columnMenu && <ColumnMenu {...columnMenu} />}

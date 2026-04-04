@@ -160,6 +160,9 @@ export const storeViewProperties = (viewProperties: ViewProperties) =>
     data: { viewProperties },
   });
 
+export const postCommand = (command: string, data?: unknown) =>
+  vscode.postMessage({ command, ...(data ? { data } : {}) });
+
 const useDataViewer = () => {
   const gridRef = useRef<AgGridReact>(null);
   const [columns, setColumns] = useState<ColDef[]>([]);

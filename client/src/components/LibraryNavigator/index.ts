@@ -157,6 +157,12 @@ class LibraryNavigator implements SubscriptionProvider {
           "workbench.actions.treeView.librarydataprovider.collapseAll",
         );
       }),
+      commands.registerCommand("SAS.copySQLiteSQL", async () => {
+        await this.callOnActiveDataViewer((viewer) => viewer.copySQLiteSQL());
+      }),
+      commands.registerCommand("SAS.openInSQLite", async () => {
+        await this.callOnActiveDataViewer((viewer) => viewer.openInSQLite());
+      }),
       workspace.onDidChangeConfiguration((event: ConfigurationChangeEvent) => {
         if (event.affectsConfiguration("SAS.connectionProfiles")) {
           this.refresh();
@@ -245,6 +251,30 @@ class LibraryNavigator implements SubscriptionProvider {
       this.lastActiveDataViewerUid = item.uid;
     };
     return viewer;
+  }
+
+  private async callOnActiveDataViewer(
+    fn: (viewer: DataViewer) => Promise<void>,
+  ): Promise<void> {
+    // First try the panel VS Code currently considers active.
+    for (const uid of this.openTables.keys()) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const panel = this.webviewManager.panels[uid] as DataViewer | undefined;
+      if (panel?.getPanel().active) {
+        await fn(panel);
+        return;
+      }
+    }
+    // Fall back to the most recently active DataViewer.
+    if (this.lastActiveDataViewerUid) {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const panel = this.webviewManager.panels[
+        this.lastActiveDataViewerUid
+      ] as DataViewer | undefined;
+      if (panel) {
+        await fn(panel);
+      }
+    }
   }
 
   private async displayTableProperties(

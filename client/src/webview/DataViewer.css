@@ -87,6 +87,16 @@ body,
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+.toolbar-separator {
+  display: inline-block;
+  width: 1px;
+  height: 1.2em;
+  background: var(--vscode-editorGroup-border);
+  margin: 0 0.25rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .header-icon.float,
 .header-icon.date,
 .header-icon.time,

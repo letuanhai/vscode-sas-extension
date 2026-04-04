@@ -948,6 +948,18 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "SAS.copySQLiteSQL",
+        "title": "%commands.SAS.copySQLiteSQL%",
+        "category": "SAS",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "SAS.openInSQLite",
+        "title": "%commands.SAS.openInSQLite%",
+        "category": "SAS",
+        "icon": "$(database)"
+      },
+      {
         "command": "SAS.reloadAllDataViewers",
         "title": "Reload All Data Viewers",
         "category": "SAS",
