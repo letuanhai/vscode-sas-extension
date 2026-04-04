@@ -31,6 +31,18 @@ describe("sqliteExport", () => {
       expect(mapSASTypeToSQLite("float")).to.equal("REAL");
     });
 
+    it("maps 'Numeric' (StudioWeb API) to REAL", () => {
+      expect(mapSASTypeToSQLite("Numeric")).to.equal("REAL");
+    });
+
+    it("maps 'numeric' (lowercase) to REAL", () => {
+      expect(mapSASTypeToSQLite("numeric")).to.equal("REAL");
+    });
+
+    it("maps 'Char' (StudioWeb API) to TEXT", () => {
+      expect(mapSASTypeToSQLite("Char")).to.equal("TEXT");
+    });
+
     it("maps 'date' to TEXT (no conversion)", () => {
       expect(mapSASTypeToSQLite("date")).to.equal("TEXT");
     });
@@ -85,6 +97,36 @@ describe("sqliteExport", () => {
 
     it("handles numeric zero correctly", () => {
       expect(escapeValue("0", "num")).to.equal("0");
+    });
+
+    it("trims whitespace before parsing num type", () => {
+      expect(escapeValue("  42.5  ", "num")).to.equal("42.5");
+      expect(escapeValue("  .  ", "num")).to.equal("NULL");
+    });
+
+    it("handles Numeric type (StudioWeb API): plain number", () => {
+      expect(escapeValue("         3.5", "Numeric")).to.equal("3.5");
+      expect(escapeValue("  23  ", "Numeric")).to.equal("23");
+      expect(escapeValue(".", "Numeric")).to.equal("NULL");
+      expect(escapeValue("  ", "Numeric")).to.equal("NULL");
+    });
+
+    it("handles Numeric type (StudioWeb API): formatted value stored as text", () => {
+      expect(escapeValue(" $36,945", "Numeric")).to.equal("'$36,945'");
+      expect(escapeValue("01JAN2020", "Numeric")).to.equal("'01JAN2020'");
+    });
+
+    it("trims trailing spaces from char values (SAS fixed-length padding)", () => {
+      expect(escapeValue("Acura        ", "char")).to.equal("'Acura'");
+      expect(escapeValue("SUV     ", "Char")).to.equal("'SUV'");
+    });
+
+    it("trims trailing spaces from Char type (StudioWeb API)", () => {
+      expect(escapeValue("hello   ", "Char")).to.equal("'hello'");
+    });
+
+    it("returns NULL for whitespace-only char value", () => {
+      expect(escapeValue("     ", "char")).to.equal("NULL");
     });
   });
 
@@ -158,6 +200,36 @@ describe("sqliteExport", () => {
       const sql = generateSQLiteSQL(quotedOpts);
       expect(sql).to.include('"MY""TABLE"');
       expect(sql).to.include('"COL""A"');
+    });
+
+    it("handles StudioWeb API capitalized types (Numeric/Char) with padded values", () => {
+      const studioWebOpts: SQLiteExportOptions = {
+        tableName: "SASHELP.CARS",
+        columns: [makeColumn("Make", "Char"), makeColumn("MSRP", "Numeric")],
+        rows: [
+          ["Acura        ", " $36,945"],
+          ["Honda        ", " $23,820"],
+        ],
+        includeDropTable: false,
+      };
+      const sql = generateSQLiteSQL(studioWebOpts);
+      expect(sql).to.include('"Make" TEXT');
+      expect(sql).to.include('"MSRP" REAL');
+      expect(sql).to.include("('Acura', '$36,945')");
+      expect(sql).to.include("('Honda', '$23,820')");
+    });
+
+    it("handles plain Numeric values as numbers", () => {
+      const numericOpts: SQLiteExportOptions = {
+        tableName: "T",
+        columns: [makeColumn("EngineSize", "Numeric")],
+        rows: [["         3.5"], ["         2.0"]],
+        includeDropTable: false,
+      };
+      const sql = generateSQLiteSQL(numericOpts);
+      expect(sql).to.include('"EngineSize" REAL');
+      expect(sql).to.include("(3.5)");
+      expect(sql).to.include("(2)");
     });
 
     it("splits into batches of 500", () => {

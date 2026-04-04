@@ -27,6 +27,16 @@ npx tsc -p server/tsconfig.json --noEmit
 
 For debugging: open in VS Code and press **F5** ("Launch Client" configuration).
 
+## Code Quality
+
+**After making code changes, always run linting:**
+
+```bash
+npm run lint
+```
+
+Linting catches errors, enforces style consistency, and must pass before any commit. Run it immediately after editing files — do not wait until the end of a task.
+
 ## Testing (for AI agents)
 
 There are two testing approaches. **Choose based on what you need:**
@@ -129,6 +139,7 @@ SAS_UI_LIVE=1 xvfb-run npx vscode-test --label studioweb-live-ui
 **What to test here:** Tree view visibility, QuickPick behavior with live data, command registration, `setContext` wiring, sidebar panel focus/reveal.
 
 **Key helpers in `helpers.ts`:**
+
 - `describeIfLive(title, fn)` — conditional `describe` gated on `SAS_UI_LIVE=1`
 - `bootstrapStudioWebProfile()` — writes a StudioWeb profile to VS Code settings
 - `cleanupProfile()` — closes session and resets settings
@@ -137,19 +148,19 @@ SAS_UI_LIVE=1 xvfb-run npx vscode-test --label studioweb-live-ui
 
 ### Decision guide for agents
 
-| Need to test…                       | Use                |
-| ----------------------------------- | ------------------ |
-| Pure function / utility             | `test-harness`     |
-| Store actions (zustand)             | `test-harness`     |
-| HTTP API logic (with mocked axios)  | `test-harness`     |
-| Data transformation / parsing       | `test-harness`     |
-| VS Code command execution           | `test-client`      |
-| LSP features (completion, hover)    | `test-client`      |
-| Extension activation / registration | `test-client`      |
-| Anything importing from `"vscode"`  | `test-client`      |
-| Tree views with live server data    | `studioweb-live-ui`|
-| QuickPick with live server data     | `studioweb-live-ui`|
-| setContext wiring with live profile | `studioweb-live-ui`|
+| Need to test…                       | Use                 |
+| ----------------------------------- | ------------------- |
+| Pure function / utility             | `test-harness`      |
+| Store actions (zustand)             | `test-harness`      |
+| HTTP API logic (with mocked axios)  | `test-harness`      |
+| Data transformation / parsing       | `test-harness`      |
+| VS Code command execution           | `test-client`       |
+| LSP features (completion, hover)    | `test-client`       |
+| Extension activation / registration | `test-client`       |
+| Anything importing from `"vscode"`  | `test-client`       |
+| Tree views with live server data    | `studioweb-live-ui` |
+| QuickPick with live server data     | `studioweb-live-ui` |
+| setContext wiring with live profile | `studioweb-live-ui` |
 
 ## Architecture
 

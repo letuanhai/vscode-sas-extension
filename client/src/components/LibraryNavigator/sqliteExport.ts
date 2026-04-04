@@ -11,13 +11,15 @@ export interface SQLiteExportOptions {
 
 /**
  * Map a SAS column type to a SQLite storage type.
+ * Handles both canonical SAS types ("num", "char") and the capitalized forms
+ * returned by the SAS Studio Web API ("Numeric", "Char").
  */
 export function mapSASTypeToSQLite(type: string): string {
   if (!type) {
     return "TEXT";
   }
   const lower = type.toLowerCase();
-  if (lower === "num" || lower === "float") {
+  if (lower === "num" || lower === "float" || lower === "numeric") {
     return "REAL";
   }
   return "TEXT";
@@ -27,10 +29,12 @@ export function mapSASTypeToSQLite(type: string): string {
  * Escape a single cell value for use in a SQLite INSERT statement.
  *
  * Rules:
- * - Empty / null / undefined  → NULL
- * - Numeric type with "."     → NULL (SAS missing numeric)
- * - Numeric type, valid number → unquoted number string
- * - Everything else           → single-quoted string with '' escaping
+ * - Empty / null / undefined                → NULL
+ * - Numeric type ("num"/"float") with "."   → NULL (SAS missing numeric)
+ * - Numeric type, valid number              → unquoted number string
+ * - "Numeric" (StudioWeb API type), valid number → unquoted number string
+ * - "Numeric", non-numeric string (formatted, e.g. "$36,945") → quoted text
+ * - Text type                               → single-quoted, trailing spaces trimmed
  */
 export function escapeValue(
   value: string | null | undefined,
@@ -41,14 +45,34 @@ export function escapeValue(
   }
   const lower = (columnType || "").toLowerCase();
   if (lower === "num" || lower === "float") {
-    if (value === ".") {
+    // Trim formatting whitespace before parsing (e.g. "  42.5" from BEST. format)
+    const trimmed = value.trim();
+    if (trimmed === ".") {
       return "NULL";
     }
-    const n = Number(value);
+    const n = Number(trimmed);
     return isNaN(n) ? "NULL" : String(n);
   }
-  // Text: single-quote the value and escape embedded single quotes
-  return `'${value.replace(/'/g, "''")}'`;
+  if (lower === "numeric") {
+    // SAS Studio Web API returns "Numeric" for all numeric columns.
+    // Values may be plain numbers ("  3.5") or formatted strings (" $36,945").
+    const trimmed = value.trim();
+    if (trimmed === "" || trimmed === ".") {
+      return "NULL";
+    }
+    const n = Number(trimmed);
+    if (!isNaN(n)) {
+      return String(n);
+    }
+    // Formatted numeric value (currency, date, etc.): store as text
+    return `'${trimmed.replace(/'/g, "''")}'`;
+  }
+  // Text: trim trailing spaces (SAS pads fixed-length char columns) and quote
+  const trimmed = value.trimEnd();
+  if (trimmed === "") {
+    return "NULL";
+  }
+  return `'${trimmed.replace(/'/g, "''")}'`;
 }
 
 /**
