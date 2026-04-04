@@ -100,7 +100,9 @@ export function getSelectedDataAsCSV(
 
   for (let r = rowStart; r <= rowEnd; r++) {
     const rowNode = api.getDisplayedRowAtIndex(r);
-    if (!rowNode?.data) continue;
+    if (!rowNode?.data) {
+      continue;
+    }
     lines.push(cols.map((col) => csvQuote(rowNode.data[col] ?? "")).join(","));
   }
 

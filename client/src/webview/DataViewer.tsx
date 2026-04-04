@@ -105,13 +105,17 @@ const DataViewer = () => {
 
   const getSQLiteExportData = useCallback(() => {
     const api = gridRef.current?.api;
-    if (!api) return null;
+    if (!api) {
+      return null;
+    }
     const colNames = getAllDataColumns();
     const rows: string[][] = [];
     const count = api.getDisplayedRowCount();
     for (let i = 0; i < count; i++) {
       const rowNode = api.getDisplayedRowAtIndex(i);
-      if (!rowNode?.data) continue;
+      if (!rowNode?.data) {
+        continue;
+      }
       rows.push(colNames.map((col) => String(rowNode.data[col] ?? "")));
     }
     const columns = rawColumns.filter((c) => colNames.includes(c.name));
@@ -135,7 +139,10 @@ const DataViewer = () => {
         return;
       }
       const shiftKey =
-        (event.event as MouseEvent | undefined)?.shiftKey ?? false;
+        event.event &&
+        typeof event.event === "object" &&
+        "shiftKey" in event.event &&
+        Boolean(event.event.shiftKey);
       if (colField === "#") {
         selection.selectRow(rowIndex, shiftKey);
       } else {
@@ -207,9 +214,12 @@ const DataViewer = () => {
         <TabBar
           tabs={["Data", "Columns"]}
           activeTab={activeTab}
-          onTabChange={(tab) =>
-            setActiveTab(tab.toLowerCase() as "data" | "columns")
-          }
+          onTabChange={(tab) => {
+            const lower = tab.toLowerCase();
+            setActiveTab(
+              lower === "data" || lower === "columns" ? lower : "data",
+            );
+          }}
         />
         <div className="tab-bar-info">
           {selection.hasSelection() && (
@@ -246,14 +256,18 @@ const DataViewer = () => {
           <span className="toolbar-separator" />
           <button
             type="button"
-            onClick={() => postCommand("request:copySQLiteSQL", getSQLiteExportData())}
+            onClick={() =>
+              postCommand("request:copySQLiteSQL", getSQLiteExportData())
+            }
             title={localize("Copy SQLite SQL")}
           >
             {localize("Copy SQLite SQL")}
           </button>
           <button
             type="button"
-            onClick={() => postCommand("request:openInSQLite", getSQLiteExportData())}
+            onClick={() =>
+              postCommand("request:openInSQLite", getSQLiteExportData())
+            }
             title={localize("Open in SQLite Editor")}
           >
             {localize("Open in SQLite Editor")}

@@ -66,12 +66,10 @@ const showInputBox = (
       }
     };
 
-    const timeoutId = setTimeout(() => {
+    setTimeout(() => {
       window.removeEventListener("message", commandHandler);
       resolve(undefined);
     }, defaultTimeout);
-
-    window.addEventListener("message", commandHandler);
   });
 };
 
@@ -198,8 +196,10 @@ const useDataViewer = () => {
 
   const getAllDataColumns = useCallback(() => {
     return columns
-      .filter((col) => col.field && col.field !== "#")
-      .map((col) => col.field as string);
+      .filter((col): col is { field: string } =>
+        Boolean(col.field && col.field !== "#"),
+      )
+      .map((col) => col.field);
   }, [columns]);
 
   const getOrderedColumns = useCallback(() => {
@@ -467,19 +467,19 @@ const useDataViewer = () => {
           },
           cellClassRules: {
             "dv-selected": (params) => {
-              const isRowSelected = (
-                params.context as {
-                  isCellSelected?: (row: number, col: string) => boolean;
-                }
-              )?.isCellSelected;
+              const context = params.context;
               if (
-                isRowSelected &&
+                context &&
+                typeof context === "object" &&
+                "isCellSelected" in context &&
+                typeof context.isCellSelected === "function" &&
                 params.rowIndex !== null &&
-                params.rowIndex !== undefined
+                params.rowIndex !== undefined &&
+                params.colDef.field
               ) {
-                return isRowSelected(
+                return context.isCellSelected(
                   params.rowIndex,
-                  params.colDef.field as string,
+                  params.colDef.field,
                 );
               }
               return false;
@@ -487,10 +487,14 @@ const useDataViewer = () => {
           },
           headerClassRules: {
             "dv-col-selected": (params) => {
-              const context = params.context as {
-                isColumnSelected?: (col: string) => boolean;
-              };
-              if (context?.isColumnSelected && params.colDef.field) {
+              const context = params.context;
+              if (
+                context &&
+                typeof context === "object" &&
+                "isColumnSelected" in context &&
+                typeof context.isColumnSelected === "function" &&
+                params.colDef.field
+              ) {
                 return context.isColumnSelected(params.colDef.field);
               }
               return false;
@@ -508,10 +512,11 @@ const useDataViewer = () => {
               params.event.key === "Enter" ||
               (params.event.key === "F10" && params.event.shiftKey)
             ) {
-              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-              const dropdown = (
-                params.event.target as HTMLElement
-              ).querySelector(".dropdown");
+              const target = params.event.target;
+              if (!target || !(target instanceof HTMLElement)) {
+                return false;
+              }
+              const dropdown = target.querySelector(".dropdown");
               if (!dropdown) {
                 return true;
               }
