@@ -168,18 +168,25 @@ function getFileName(textDocument: TextDocument): string {
 
   // Massage file path value
   const scheme = textDocument.uri?.scheme;
-  if (scheme === "sasServer" && params.has("id")) {
-    const id = params.get("id");
-    // Viya - server file
-    // id = /compute/sessions/<guid>/files/~fs~studiodev~fs~myprogram.sas
-    // result = /studiodev/myprogram.sas
-    if (/^\/compute\/sessions\/\w+(-\w+)+\/files\/~fs~[^/]+$/.test(id)) {
-      pathName = `${id}`.split("/").pop().replace(/~fs~/g, "/");
-    }
-    if (!pathName) {
-      // IOM - server file
-      // id = C:\\Users\\sasdemo\\Documents\\My SAS Files\\9.4\\myfolder\\myprogram.sas
-      pathName = id;
+  if (scheme === "sasServer") {
+    if (params.has("id")) {
+      const id = params.get("id");
+      // Viya - server file
+      // id = /compute/sessions/<guid>/files/~fs~studiodev~fs~myprogram.sas
+      // result = /studiodev/myprogram.sas
+      if (/^\/compute\/sessions\/\w+(-\w+)+\/files\/~fs~[^/]+$/.test(id)) {
+        pathName = `${id}`.split("/").pop().replace(/~fs~/g, "/");
+      }
+      if (!pathName) {
+        // IOM - server file
+        // id = C:\\Users\\sasdemo\\Documents\\My SAS Files\\9.4\\myfolder\\myprogram.sas
+        pathName = id;
+      }
+    } else {
+      // StudioWeb - server file: uri.path is the SAS server path and always
+      // uses forward slashes regardless of the OS running the extension.
+      // Avoid textDocument.fileName / uri.fsPath which may use backslashes on Windows.
+      pathName = textDocument.uri.path;
     }
   }
 
