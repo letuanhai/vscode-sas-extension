@@ -324,8 +324,7 @@ export default class QuickFileBrowser {
   private store: QuickFileBrowserStore | undefined;
 
   // Saved state for persistence across browser sessions
-  private savedStack: ContentItem[] = [];
-  private savedCache: Map<string, ContentItem[]> = new Map();
+  private savedFolderUri: string | undefined;
   private savedActiveKey: string | undefined;
 
   constructor(
@@ -345,8 +344,7 @@ export default class QuickFileBrowser {
    * Called when explicitly navigating home or when the browser is disposed.
    */
   clearState(): void {
-    this.savedStack = [];
-    this.savedCache.clear();
+    this.savedFolderUri = undefined;
     this.savedActiveKey = undefined;
   }
 
@@ -373,22 +371,15 @@ export default class QuickFileBrowser {
       stack.push(syntheticFolder(arg));
     } else if (arg !== undefined) {
       stack.push(arg);
-    } else if (this.savedStack.length > 0) {
-      // Restore saved state when no explicit argument provided
-      for (const item of this.savedStack) {
-        stack.push(item);
-      }
+    } else if (this.savedFolderUri) {
+      // Restore saved folder: navigate to it with a fresh API call
+      stack.push(syntheticFolder(this.savedFolderUri));
     }
 
-    // Per-session cache keyed by folder URI (or "root" for the root listing)
+    // Per-session cache: populated on each load so refreshItems() (bookmark
+    // toggles) can rebuild items without an extra network call.
+    // Navigation always fetches fresh from server; cache is never used for that.
     const cache = new Map<string, ContentItem[]>();
-
-    // Seed cache from saved state if restoring
-    if (!hasExplicitArg && this.savedStack.length > 0) {
-      for (const [key, value] of this.savedCache.entries()) {
-        cache.set(key, value);
-      }
-    }
 
     // Monotonic version counter used to discard stale async responses
     const version = { current: 0 };
@@ -396,10 +387,16 @@ export default class QuickFileBrowser {
     const currentFolder = (): ContentItem | undefined =>
       stack.length > 0 ? stack[stack.length - 1] : undefined;
 
+    // Active key to restore on first load after reopening (consumed once).
+    let restoreKey: string | undefined =
+      !hasExplicitArg && this.savedFolderUri ? this.savedActiveKey : undefined;
+
     const reload = (): void => {
       version.current += 1;
       const v = version.current;
       const filter = nextFilter;
+      const key = restoreKey;
+      restoreKey = undefined; // consume once; subsequent navigations pass undefined
       nextFilter = "";
       void this.loadFolder(
         currentFolder(),
@@ -410,6 +407,7 @@ export default class QuickFileBrowser {
         v,
         filter,
         this.store,
+        key,
       ).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         // If restoring a saved folder fails, clear stack and reload from root
@@ -629,8 +627,7 @@ export default class QuickFileBrowser {
 
     qp.onDidHide(() => {
       // Save state for persistence across browser sessions
-      this.savedStack = [...stack];
-      this.savedCache = new Map(cache);
+      this.savedFolderUri = currentFolder()?.uri;
       this.savedActiveKey = qp.activeItems[0]
         ? itemKey(qp.activeItems[0])
         : undefined;
@@ -655,21 +652,7 @@ export default class QuickFileBrowser {
     void commands.executeCommand("setContext", "SAS.quickBrowseOpen", true);
     qp.show();
 
-    // If restoring saved state, restore focus to saved active key after load
-    const restoreFocus = !hasExplicitArg && this.savedStack.length > 0;
-    const targetActiveKey = restoreFocus ? this.savedActiveKey : undefined;
-
     reload();
-
-    // Restore focus after a brief delay to allow items to load
-    if (restoreFocus && targetActiveKey) {
-      setTimeout(() => {
-        const found = qp.items.find((i) => itemKey(i) === targetActiveKey);
-        if (found) {
-          qp.activeItems = [found];
-        }
-      }, 50);
-    }
   }
 
   private async loadFolder(
@@ -681,17 +664,14 @@ export default class QuickFileBrowser {
     expectedVersion: number,
     initialFilter = "",
     store?: QuickFileBrowserStore,
+    restoreActiveKey?: string,
   ): Promise<void> {
     qp.busy = true;
 
     const cacheKey = folder?.uri ?? "root";
 
-    let children: ContentItem[];
-    if (cache.has(cacheKey)) {
-      children = cache.get(cacheKey)!;
-    } else {
-      children = await this.contentModel.getChildren(folder);
-    }
+    // Always fetch fresh from server — never serve stale cached data on navigation.
+    const children = await this.contentModel.getChildren(folder);
 
     // Guard against stale responses delivered after a newer navigation
     if (version.current !== expectedVersion) {
@@ -871,11 +851,12 @@ export default class QuickFileBrowser {
       ...suffixItems,
     ];
 
-    // Restore focus to the previously active item if it still exists in the new list
-    // (same-folder refreshes, e.g. after toggling a bookmark). On navigation to a new
-    // folder the old item won't be found, so focus falls to the first item naturally.
-    if (prevKey !== undefined) {
-      const found = qp.items.find((i) => itemKey(i) === prevKey);
+    // Restore focus: prefer the saved active key on reopen, otherwise restore
+    // the previously active item for same-folder refreshes (e.g. bookmark toggle).
+    // If neither matches any item, VS Code leaves focus on the first item.
+    const focusTarget = restoreActiveKey ?? prevKey;
+    if (focusTarget !== undefined) {
+      const found = qp.items.find((i) => itemKey(i) === focusTarget);
       if (found !== undefined) {
         qp.activeItems = [found];
       }
