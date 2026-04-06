@@ -24,7 +24,11 @@
 - [x] 13. bug: Copy SAS Server Path always copy path of active editor, even when running from different tab's context menu
 - [-] 14. Log output has no color on windows: log output highlighting is only available when using SAS color schemes
 - [x] 15. Change Result pane title to Result-Filename to know which result pane is for which program
-- [ ] 16. Improve DataViewer panel — see `docs/task-16-dataviewer-improvement-spec.md` for full spec
+- [x] 16. Improve DataViewer panel — see `docs/task-16-dataviewer-improvement-spec.md` for full spec
   - [x] 16.1. Custom cell/row/column/range selection layer with Ctrl/Cmd+C copy (useSelection.ts)
   - [x] 16.2. Column management tab (ColumnManager.tsx + TabBar.tsx) — search, visibility toggles, copy column names
   - [x] 16.3. SQLite3 Editor integration — generate CREATE TABLE + INSERT SQL, copy to clipboard or execute via query-editor
+- [ ] 17. When executing SAS script, the extension will add a few lines of code at the beginning/end of the submitted code, one of which will declare the SAS macro variable `_SASPROGRAMFILE` with the path of the submitted script. Currently, for files on the SAS server opened by the extension, the paths used to declare the macro variable is the path name provided by VSCode, which on Windows will change the path separators from "/" to "\". Expected: use SAS server file uri verbatim for the macro variable
+- [ ] 18. Quick browser seems to be caching item list: when I open the quick browser and navigate to a folder, then create a new file in that folder (via sidebar, API call, SAS Studio or directly in SAS server), then close quick browser and reopen so it's still pointing to that folder (or navigate to a different folder then return to that folder), I don't see the new file listed in quick browser.
+    Expected behaviour: every time I navigate to a folder in quick browser, the list of items inside the folder should be load by API call to server, not using cached data. When I close quick browser, the uris of current folder and focused item should be saved, and when I open quick browser again, quick browser will navigate to the saved folder and focus on saved item with the list of items loaded by API call to server (list of items in folder is not cached). If saved focus file is deleted, the focus is reset to top of item list, and if the saved folder is deleted (API call return empty/error) then quick browser reset to homepage.
+
