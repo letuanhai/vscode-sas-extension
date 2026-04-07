@@ -192,6 +192,9 @@ class LibraryModel {
 
     items.sort(sortById);
 
+    // Filter out temporary libraries used for opening .sas7bdat files
+    items = items.filter((item) => !item.id.match(/^_FV\d+$/));
+
     return this.processItems(items, "library", undefined);
   }
 
