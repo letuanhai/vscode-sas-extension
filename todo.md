@@ -35,7 +35,7 @@
 - [x] 20. Downloading a zip file from the SAS server with the extension resulted in a malformed zip file. Investigate the issue: create tests to validate the issue, test with raw api call, use playwright-cli to test and investigate how SAS Studio web handle it
 - [x] 21. Uploading a zip file to the SAS server with the VSCode extension resulted in a malformed zip file. Investigate the issue: create tests to validate the issue, test with raw api call, use playwright-cli to test and investigate how SAS Studio web handle it
 - [x] 22. Change all file writing to use `'Content-Type': 'application/octet-stream'` so that all text encoding is handled by VSCode
-- [ ] 23. Add entry in context menu of SAS server file editor to focus the file in the SAS sidebar file tree, the entry should be under 'Reload from SAS Server'
+- [x] 23. Add entry in context menu of SAS server file editor to focus the file in the SAS sidebar file tree, the entry should be under 'Reload from SAS Server'
 - [x] 24. Add entry in context menu of SAS data viewer to focus the table in SAS Libraries view
      Added "Reveal in Libraries View" to `editor/title` menu (... dropdown) for DataViewer tabs. Uses `activeWebviewPanelId == 'SAS.dataViewer'` which correctly scopes to the active panel. `editor/title/context` (tab right-click) was not usable because `activeWebviewPanelId` is global state that bleeds across tabs. Also added `getParent()` to `LibraryDataProvider` which is required by VS Code's `TreeView.reveal()` API.
-- [ ] 25. Temporary library created to open SAS dataset file (in task 4) should be hidden from Libraries view
+- [x] 25. Temporary library created to open SAS dataset file (in task 4) should be hidden from Libraries view
