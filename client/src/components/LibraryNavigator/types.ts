@@ -31,6 +31,19 @@ export interface TableQuery {
   filterValue: string;
 }
 
+export interface LibraryPath {
+  physicalName: string;
+  engineName: string;
+  infoProperties?: Record<string, string>;
+}
+
+export interface LibraryInfo {
+  name: string;
+  engine: string;
+  readOnly: boolean;
+  paths: LibraryPath[];
+}
+
 export interface LibraryAdapter {
   connect(): Promise<void>;
   deleteTable(item: LibraryItem): Promise<void>;
@@ -58,9 +71,11 @@ export interface LibraryAdapter {
     start: number,
     limit: number,
   ): Promise<TableData>;
-  getTableRowCount(
-    item: LibraryItem,
-  ): Promise<{ rowCount: number; maxNumberOfRowsToRead: number; columnCount?: number }>;
+  getTableRowCount(item: LibraryItem): Promise<{
+    rowCount: number;
+    maxNumberOfRowsToRead: number;
+    columnCount?: number;
+  }>;
   getTables(
     item: LibraryItem,
     start: number,
@@ -70,5 +85,6 @@ export interface LibraryAdapter {
     count: number;
   }>;
   getTableInfo?(item: LibraryItem): Promise<TableInfo>;
+  getLibraryInfo?(item: LibraryItem): Promise<LibraryInfo>;
   setup(): Promise<void>;
 }

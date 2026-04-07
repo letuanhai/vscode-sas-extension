@@ -991,6 +991,11 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.showLibraryProperties",
+        "title": "%commands.SAS.showLibraryProperties%",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.notebook.new",
         "shortTitle": "%commands.SAS.notebook.new.short%",
         "title": "%commands.SAS.notebook.new%",
@@ -1172,6 +1177,11 @@
         {
           "command": "SAS.showTableProperties",
           "when": "viewItem =~ /table-/ && view == librarydataprovider",
+          "group": "properties@0"
+        },
+        {
+          "command": "SAS.showLibraryProperties",
+          "when": "viewItem =~ /library-/ && view == librarydataprovider",
           "group": "properties@0"
         },
         {

@@ -174,9 +174,7 @@ class LibraryDataProvider
     return this.model.getChildren(item);
   }
 
-  public async getParent(
-    item: LibraryItem,
-  ): Promise<LibraryItem | undefined> {
+  public async getParent(item: LibraryItem): Promise<LibraryItem | undefined> {
     if (item.type === LibraryType) {
       return undefined;
     }
@@ -205,6 +203,10 @@ class LibraryDataProvider
 
   public async getTableInfo(item: LibraryItem) {
     return await this.model.getTableInfo(item);
+  }
+
+  public async getLibraryInfo(item: LibraryItem) {
+    return await this.model.getLibraryInfo(item);
   }
 
   public async fetchColumns(item: LibraryItem) {

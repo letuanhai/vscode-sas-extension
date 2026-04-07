@@ -162,6 +162,16 @@ class LibraryModel {
     throw new Error("Table properties not supported for this connection type");
   }
 
+  public async getLibraryInfo(item: LibraryItem) {
+    if (this.libraryAdapter.getLibraryInfo) {
+      await this.libraryAdapter.setup();
+      return await this.libraryAdapter.getLibraryInfo(item);
+    }
+    throw new Error(
+      "Library properties not supported for this connection type",
+    );
+  }
+
   public async getChildren(item?: LibraryItem): Promise<LibraryItem[]> {
     if (!this.libraryAdapter) {
       return [];

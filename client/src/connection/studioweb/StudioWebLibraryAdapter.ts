@@ -4,6 +4,7 @@ import type { SortModelItem } from "ag-grid-community";
 
 import {
   LibraryAdapter,
+  LibraryInfo,
   LibraryItem,
   TableData,
   TableQuery,
@@ -36,7 +37,10 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
     // no-op
   }
 
-  public async getLibraries(): Promise<{ items: LibraryItem[]; count: number }> {
+  public async getLibraries(): Promise<{
+    items: LibraryItem[];
+    count: number;
+  }> {
     if (!(await ensureCredentials())) {
       return { items: [], count: 0 };
     }
@@ -147,9 +151,7 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
       );
 
       const rawColumns: Array<Record<string, unknown>> =
-        response.data?.items ??
-        response.data?.columns ??
-        [];
+        response.data?.items ?? response.data?.columns ?? [];
 
       const columns = rawColumns.map((col, index) => ({
         index,
@@ -176,7 +178,7 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
             format: String(
               typeof fmt === "object" && fmt !== null && "name" in fmt
                 ? fmt.name
-                : fmt ?? "",
+                : (fmt ?? ""),
             ),
           });
           return { type: iconType };
@@ -226,7 +228,8 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
       // query works for both tables and views (views reject dataset options).
       let sql: string;
       if (whereClause || orderByClause) {
-        sql = `select * from (select * from ${lib}.'${table}'n) ${whereClause} ${orderByClause}`.trim();
+        sql =
+          `select * from (select * from ${lib}.'${table}'n) ${whereClause} ${orderByClause}`.trim();
       } else {
         sql = `select * from ${lib}.'${table}'n`;
       }
@@ -281,9 +284,11 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
     return { rows, count: -1 };
   }
 
-  public async getTableRowCount(
-    item: LibraryItem,
-  ): Promise<{ rowCount: number; maxNumberOfRowsToRead: number; columnCount?: number }> {
+  public async getTableRowCount(item: LibraryItem): Promise<{
+    rowCount: number;
+    maxNumberOfRowsToRead: number;
+    columnCount?: number;
+  }> {
     const axios = getAxios();
     const creds = getCredentials();
     if (!axios || !creds) {
@@ -308,7 +313,12 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
       const rowCount = response.data?.numRows ?? 0;
       const columnCount = response.data?.numColumns;
 
-      return { rowCount: Number(rowCount), maxNumberOfRowsToRead: 100, columnCount: columnCount !== undefined ? Number(columnCount) : undefined };
+      return {
+        rowCount: Number(rowCount),
+        maxNumberOfRowsToRead: 100,
+        columnCount:
+          columnCount !== undefined ? Number(columnCount) : undefined,
+      };
     } catch (error) {
       console.error("StudioWebLibraryAdapter.getTableRowCount error:", error);
       return { rowCount: 0, maxNumberOfRowsToRead: 100 };
@@ -404,8 +414,7 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
         const response = await axios.get(
           `/sessions/${sessionId}/messages/longpoll`,
         );
-        const messages: Array<Record<string, unknown>> =
-          response.data ?? [];
+        const messages: Array<Record<string, unknown>> = response.data ?? [];
 
         if (!Array.isArray(messages) || messages.length === 0) {
           // Empty array indicates completion
@@ -474,6 +483,66 @@ class StudioWebLibraryAdapter implements LibraryAdapter {
     } catch (error) {
       console.warn("StudioWebLibraryAdapter.getTableInfo error:", error);
       return { name: item.name, libref: item.library };
+    }
+  }
+
+  public async getLibraryInfo(item: LibraryItem): Promise<LibraryInfo> {
+    const axios = getAxios();
+    const creds = getCredentials();
+    if (!axios || !creds) {
+      throw new Error("Not connected to SAS Studio Web");
+    }
+
+    try {
+      // The /libraries endpoint returns all libraries with their properties
+      const response = await axios.get(
+        `/libdata/${creds.sessionId}/libraries`,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+
+      // Find the library in the children array
+      const parsed =
+        typeof response.data === "string"
+          ? JSON.parse(response.data)
+          : response.data;
+      const libraries = parsed?.children ?? [];
+      const libraryNode = libraries.find(
+        (lib: { name?: string }) => lib.name === item.name,
+      );
+
+      if (!libraryNode) {
+        throw new Error(`Library ${item.name} not found`);
+      }
+
+      // Library data is in the 'data' field
+      const data = libraryNode.data ?? {};
+      const concats = data.concats ?? [];
+
+      return {
+        name: data.name || item.name,
+        engine: data.engine || "",
+        readOnly:
+          data.readOnly === true ||
+          String(data.readOnly).toLowerCase() === "yes",
+        paths: concats.map(
+          (c: {
+            physicalName?: string;
+            engineName?: string;
+            infoProperties?: Record<string, string>;
+          }) => ({
+            physicalName: c.physicalName || "",
+            engineName: c.engineName || "",
+            infoProperties: c.infoProperties,
+          }),
+        ),
+      };
+    } catch (error) {
+      console.error("StudioWebLibraryAdapter.getLibraryInfo error:", error);
+      throw new Error(
+        `Failed to get library info for ${item.name}: ${error.message}`,
+      );
     }
   }
 }

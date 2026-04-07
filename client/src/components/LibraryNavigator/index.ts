@@ -19,6 +19,7 @@ import * as path from "path";
 import { profileConfig } from "../../commands/profile";
 import { Column } from "../../connection/rest/api/compute";
 import DataViewer, { ViewProperties } from "../../panels/DataViewer";
+import LibraryPropertiesViewer from "../../panels/LibraryPropertiesViewer";
 import TablePropertiesViewer from "../../panels/TablePropertiesViewer";
 import { WebViewManager } from "../../panels/WebviewManager";
 import { SubscriptionProvider } from "../SubscriptionProvider";
@@ -180,6 +181,12 @@ class LibraryNavigator implements SubscriptionProvider {
           await this.displayTableProperties(item);
         },
       ),
+      commands.registerCommand(
+        "SAS.showLibraryProperties",
+        async (item: LibraryItem) => {
+          await this.displayLibraryProperties(item);
+        },
+      ),
       commands.registerCommand("SAS.collapseAllLibraries", () => {
         commands.executeCommand(
           "workbench.actions.treeView.librarydataprovider.collapseAll",
@@ -329,6 +336,24 @@ class LibraryNavigator implements SubscriptionProvider {
     } catch (error) {
       window.showErrorMessage(
         `Failed to load table properties: ${error.message}`,
+      );
+    }
+  }
+
+  private async displayLibraryProperties(item: LibraryItem) {
+    try {
+      const libraryInfo = await this.libraryDataProvider.getLibraryInfo(item);
+
+      this.webviewManager.render(
+        new LibraryPropertiesViewer(this.extensionUri, libraryInfo),
+        `library-properties-${item.uid}`,
+        true,
+      );
+    } catch (error) {
+      window.showErrorMessage(
+        l10n.t("Failed to load library properties: {error}", {
+          error: error.message,
+        }),
       );
     }
   }

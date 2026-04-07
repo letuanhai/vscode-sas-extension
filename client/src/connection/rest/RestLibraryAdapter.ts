@@ -6,6 +6,7 @@ import { AxiosResponse } from "axios";
 import { getSession } from "..";
 import {
   LibraryAdapter,
+  LibraryInfo,
   LibraryItem,
   TableData,
   TableQuery,
@@ -209,6 +210,50 @@ class RestLibraryAdapter implements LibraryAdapter {
     );
 
     return response.data;
+  }
+
+  public async getLibraryInfo(item: LibraryItem): Promise<LibraryInfo> {
+    await this.setup();
+    const response = await this.retryOnFail(
+      async () =>
+        await this.dataAccessApi.getLibrary(
+          {
+            sessionId: this.sessionId,
+            libref: item.name,
+          },
+          { headers: { Accept: "application/json" } },
+        ),
+    );
+
+    const data = response.data;
+    const paths: Array<{ physicalName: string; engineName: string }> = [];
+
+    // Check for concatenated libraries first
+    if (data.concatenations && data.concatenations.length > 0) {
+      for (const concat of data.concatenations) {
+        if (concat.physicalName) {
+          paths.push({
+            physicalName: concat.physicalName,
+            engineName: concat.engineName || data.engineName || "",
+          });
+        }
+      }
+    }
+
+    // If no concatenations, use the main physicalName
+    if (paths.length === 0 && data.physicalName) {
+      paths.push({
+        physicalName: data.physicalName,
+        engineName: data.engineName || "",
+      });
+    }
+
+    return {
+      name: data.name || data.libref || item.name,
+      engine: data.engineName || "",
+      readOnly: data.readOnly || false,
+      paths,
+    };
   }
 
   private async retryOnFail<T>(
