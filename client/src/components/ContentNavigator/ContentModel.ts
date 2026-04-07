@@ -166,6 +166,15 @@ export class ContentModel {
     await this.contentAdapter.updateContentOfItem(uri, content, encoding);
   }
 
+  public async saveRawContentToUri(
+    uri: Uri,
+    content: Uint8Array,
+  ): Promise<void> {
+    if (this.contentAdapter.updateContentOfItemRaw) {
+      await this.contentAdapter.updateContentOfItemRaw(uri, content);
+    }
+  }
+
   public async getUri(item: ContentItem, readOnly: boolean): Promise<Uri> {
     return await this.contentAdapter.getUriOfItem(item, readOnly);
   }

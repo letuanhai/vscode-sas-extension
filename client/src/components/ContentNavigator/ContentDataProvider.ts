@@ -430,6 +430,15 @@ class ContentDataProvider
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
     const encoding = (doc as any)?.encoding as string | undefined;
 
+    // Use raw binary path when adapter supports it AND there is no non-UTF-8
+    // encoding to transcode (the ?encoding= server param is not needed).
+    if (
+      (!encoding || encoding === "utf8") &&
+      this.model.getAdapter().updateContentOfItemRaw
+    ) {
+      return this.model.saveRawContentToUri(uri, content);
+    }
+
     if (encoding && encoding !== "utf8") {
       // workspace.decode is also available since VS Code 1.100
       // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions

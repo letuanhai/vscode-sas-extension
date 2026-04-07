@@ -394,6 +394,81 @@ describe("StudioWebServerAdapter — CRUD operations", () => {
       const result = await adapter.createNewItem(makeFolderItem(), "new.sas");
       expect(result).to.be.undefined;
     });
+
+    it("sends binary buffer as application/octet-stream without corruption", async () => {
+      sandbox.stub(state, "getServerEncoding").returns("UTF-8");
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+      axiosMock.get.resolves({ data: { children: [] } });
+      axiosMock.post.resolves({ status: 200 });
+
+      // ZIP magic bytes + high bytes that TextDecoder("utf-8") would corrupt
+      const zipBytes = new Uint8Array([
+        0x50, 0x4b, 0x03, 0x04, // ZIP magic bytes (PK\x03\x04)
+        0x80, 0xff, 0xfe, 0x00, // high bytes that are invalid UTF-8
+        0x01, 0x02, 0x03, 0x04,
+      ]);
+      const arrayBuf = zipBytes.buffer.slice(
+        zipBytes.byteOffset,
+        zipBytes.byteOffset + zipBytes.byteLength,
+      );
+
+      const parent = makeFolderItem();
+      const result = await adapter.createNewItem(parent, "archive.zip", arrayBuf);
+
+      expect(result).to.not.be.undefined;
+      expect(result!.name).to.equal("archive.zip");
+
+      // Verify POST was called once
+      expect(axiosMock.post.calledOnce).to.be.true;
+      const [, body, config] = axiosMock.post.firstCall.args;
+
+      // Body must be a Buffer instance (raw bytes), not a string
+      expect(Buffer.isBuffer(body)).to.be.true;
+
+      // Content-Type must be application/octet-stream
+      expect(config?.headers?.["Content-Type"]).to.equal("application/octet-stream");
+
+      // Exact bytes must be preserved — no UTF-8 replacement characters
+      const sentBytes = new Uint8Array(body as Buffer);
+      expect(sentBytes.length).to.equal(zipBytes.length);
+      for (let i = 0; i < zipBytes.length; i++) {
+        expect(sentBytes[i]).to.equal(
+          zipBytes[i],
+          `byte at index ${i} should be 0x${zipBytes[i].toString(16).padStart(2, "0")}`,
+        );
+      }
+
+      // Spot-check: ZIP magic bytes are intact
+      expect(sentBytes[0]).to.equal(0x50); // 'P'
+      expect(sentBytes[1]).to.equal(0x4b); // 'K'
+      expect(sentBytes[2]).to.equal(0x03);
+      expect(sentBytes[3]).to.equal(0x04);
+
+      // Spot-check: high bytes are NOT corrupted to 0xef 0xbf 0xbd (UTF-8 U+FFFD)
+      expect(sentBytes[4]).to.equal(0x80);
+      expect(sentBytes[5]).to.equal(0xff);
+    });
+
+    it("sends empty string with text/plain for empty file creation (no buffer)", async () => {
+      sandbox.stub(state, "getServerEncoding").returns("UTF-8");
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+      axiosMock.get.resolves({ data: { children: [] } });
+      axiosMock.post.resolves({ status: 200 });
+
+      const parent = makeFolderItem();
+      const result = await adapter.createNewItem(parent, "empty.sas");
+
+      expect(result).to.not.be.undefined;
+      expect(axiosMock.post.calledOnce).to.be.true;
+
+      const [, body, config] = axiosMock.post.firstCall.args;
+
+      // Body must be empty string for empty file creation
+      expect(body).to.equal("");
+
+      // Content-Type must be text/plain
+      expect(config?.headers?.["Content-Type"]).to.include("text/plain");
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -508,6 +583,76 @@ describe("StudioWebServerAdapter — CRUD operations", () => {
       const result = await adapter.getContentOfItemRaw(makeItem());
       expect(result).to.be.instanceOf(Uint8Array);
       expect(result.length).to.equal(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // updateContentOfItemRaw
+  // ---------------------------------------------------------------------------
+  describe("updateContentOfItemRaw()", () => {
+    it("POSTs raw bytes as application/octet-stream", async () => {
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+      axiosMock.post.resolves({ status: 200 });
+
+      // Include high bytes that TextDecoder would corrupt with UTF-8 replacement chars
+      const rawBytes = new Uint8Array([
+        0x50, 0x4b, 0x03, 0x04, // ZIP magic bytes
+        0x80, 0xff, 0xfe, 0x00, // high bytes invalid in UTF-8
+        0x01, 0x02, 0x03, 0x04,
+      ]);
+
+      const uri = Uri.parse("sasServer:/folders/myfolders/test/archive.zip");
+      await adapter.updateContentOfItemRaw(uri, rawBytes);
+
+      expect(axiosMock.post.calledOnce).to.be.true;
+      const [, body, config] = axiosMock.post.firstCall.args;
+
+      // Body must be a Buffer instance (raw bytes), not a string
+      expect(Buffer.isBuffer(body)).to.be.true;
+
+      // Content-Type must be application/octet-stream
+      expect(config?.headers?.["Content-Type"]).to.equal(
+        "application/octet-stream",
+      );
+
+      // Every byte must be preserved exactly
+      const sentBytes = new Uint8Array(body as Buffer);
+      expect(sentBytes.length).to.equal(rawBytes.length);
+      for (let i = 0; i < rawBytes.length; i++) {
+        expect(sentBytes[i]).to.equal(
+          rawBytes[i],
+          `byte at index ${i} should be 0x${rawBytes[i].toString(16).padStart(2, "0")}`,
+        );
+      }
+
+      // Spot-check: high bytes are NOT corrupted to 0xef 0xbf 0xbd (U+FFFD)
+      expect(sentBytes[4]).to.equal(0x80);
+      expect(sentBytes[5]).to.equal(0xff);
+    });
+
+    it("returns void on success", async () => {
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+      axiosMock.post.resolves({ status: 200 });
+
+      const uri = Uri.parse("sasServer:/folders/myfolders/test/file.sas");
+      const result = await adapter.updateContentOfItemRaw(
+        uri,
+        new Uint8Array([0x68, 0x69]),
+      );
+
+      expect(result).to.be.undefined;
+    });
+
+    it("returns without throwing on credential failure", async () => {
+      sandbox.restore();
+      sandbox = sinon.createSandbox();
+      sandbox.stub(studiwebIndex, "ensureCredentials").resolves(false);
+      // getAxios and getCredentials are never reached when ensureCredentials returns false
+
+      const uri = Uri.parse("sasServer:/folders/myfolders/test/file.sas");
+      const result = await adapter.updateContentOfItemRaw(uri, new Uint8Array([0x68, 0x69]));
+
+      expect(result).to.be.undefined;
     });
   });
 

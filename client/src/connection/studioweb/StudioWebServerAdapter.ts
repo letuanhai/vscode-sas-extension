@@ -435,6 +435,30 @@ class StudioWebServerAdapter implements ContentAdapter {
     );
   }
 
+  public async updateContentOfItemRaw(
+    uri: Uri,
+    content: Uint8Array,
+  ): Promise<void> {
+    if (!(await ensureCredentials())) {
+      return;
+    }
+    const axios = getAxios();
+    const creds = getCredentials();
+    if (!axios || !creds) {
+      return;
+    }
+
+    const path = uri.path;
+    try {
+      await axios.post(workspaceUrl(creds.sessionId, path), Buffer.from(content), {
+        headers: { "Content-Type": "application/octet-stream" },
+      });
+    } catch (error) {
+      console.error("StudioWebServerAdapter.updateContentOfItemRaw error:", error);
+      throw error;
+    }
+  }
+
   public async deleteItem(item: ContentItem): Promise<boolean> {
     if (!(await ensureCredentials())) {
       return false;
@@ -483,22 +507,31 @@ class StudioWebServerAdapter implements ContentAdapter {
         return undefined;
       }
 
-      // buffer is UTF-8 bytes from VS Code; decode explicitly as UTF-8.
-      const content = buffer
-        ? new TextDecoder("utf-8").decode(buffer)
-        : "";
-      const encoding = getServerEncoding();
-      const encodingParam =
-        encoding.toUpperCase() === "UTF-8" ? {} : { encoding };
-      // Use double-slash pattern (~~ds~~ returns 404 on /sessions/ workspace endpoint)
-      await axios.post(
-        workspaceUrl(creds.sessionId, filePath),
-        content,
-        {
-          params: encodingParam,
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
-        },
-      );
+      if (buffer) {
+        // Send raw bytes as octet-stream to avoid TextDecoder corrupting binary
+        // data (e.g. ZIP files) with UTF-8 replacement characters (U+FFFD).
+        await axios.post(
+          workspaceUrl(creds.sessionId, filePath),
+          Buffer.from(buffer),
+          {
+            headers: { "Content-Type": "application/octet-stream" },
+          },
+        );
+      } else {
+        // Empty file creation: use text/plain with optional encoding param.
+        const encoding = getServerEncoding();
+        const encodingParam =
+          encoding.toUpperCase() === "UTF-8" ? {} : { encoding };
+        // Use double-slash pattern (~~ds~~ returns 404 on /sessions/ workspace endpoint)
+        await axios.post(
+          workspaceUrl(creds.sessionId, filePath),
+          "",
+          {
+            params: encodingParam,
+            headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          },
+        );
+      }
 
       return this.convertEntryToContentItem(
         { name: fileName, uri: filePath, isDirectory: false },

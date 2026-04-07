@@ -104,6 +104,7 @@ export interface ContentAdapter {
   getContentOfItemRaw?(item: ContentItem): Promise<Uint8Array>;
   getContentOfUriRaw?(uri: Uri): Promise<Uint8Array>;
   updateContentOfItem(uri: Uri, content: string, encoding?: string): Promise<void>;
+  updateContentOfItemRaw?(uri: Uri, content: Uint8Array): Promise<void>;
 }
 
 export enum ContentSourceType {
