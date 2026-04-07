@@ -430,12 +430,10 @@ class ContentDataProvider
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/consistent-type-assertions
     const encoding = (doc as any)?.encoding as string | undefined;
 
-    // Use raw binary path when adapter supports it AND there is no non-UTF-8
-    // encoding to transcode (the ?encoding= server param is not needed).
-    if (
-      (!encoding || encoding === "utf8") &&
-      this.model.getAdapter().updateContentOfItemRaw
-    ) {
+    // Use raw binary path when adapter supports it. VS Code already encodes
+    // the document's text into the correct encoding before calling writeFile,
+    // so the bytes are always ready to send as-is regardless of encoding.
+    if (this.model.getAdapter().updateContentOfItemRaw) {
       return this.model.saveRawContentToUri(uri, content);
     }
 
