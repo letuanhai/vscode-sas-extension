@@ -457,6 +457,61 @@ describe("StudioWebServerAdapter — CRUD operations", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // getContentOfItemRaw
+  // ---------------------------------------------------------------------------
+  describe("getContentOfItemRaw()", () => {
+    it("returns exact raw bytes without any encoding applied", async () => {
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+
+      // Raw binary payload including high bytes and ZIP magic bytes
+      const rawBytes = new Uint8Array([
+        0x50, 0x4b, 0x03, 0x04, // ZIP magic bytes
+        0x80, 0xff, 0xfe, 0x00, // high bytes that UTF-8 would corrupt
+        0x01, 0x02, 0x03, 0x04,
+      ]);
+      const arrayBuf = rawBytes.buffer.slice(
+        rawBytes.byteOffset,
+        rawBytes.byteOffset + rawBytes.byteLength,
+      );
+      axiosMock.get.resolves({ data: arrayBuf });
+
+      const item = makeItem();
+      const result = await adapter.getContentOfItemRaw(item);
+
+      // Verify arraybuffer responseType was used
+      expect(axiosMock.get.calledOnce).to.be.true;
+      const [, config] = axiosMock.get.firstCall.args;
+      expect(config?.responseType).to.equal("arraybuffer");
+
+      // Verify every byte is preserved exactly (no encoding applied)
+      expect(result.length).to.equal(rawBytes.length);
+      for (let i = 0; i < rawBytes.length; i++) {
+        expect(result[i]).to.equal(
+          rawBytes[i],
+          `byte at index ${i} should be 0x${rawBytes[i].toString(16).padStart(2, "0")}`,
+        );
+      }
+
+      // Verify ZIP magic bytes
+      expect(result[0]).to.equal(0x50);
+      expect(result[1]).to.equal(0x4b);
+
+      // Verify high bytes are NOT corrupted
+      expect(result[4]).to.equal(0x80);
+      expect(result[5]).to.equal(0xff);
+    });
+
+    it("returns empty Uint8Array on error", async () => {
+      sandbox.stub(state, "getEncodeDoubleSlashes").returns(false);
+      axiosMock.get.rejects(new Error("not found"));
+
+      const result = await adapter.getContentOfItemRaw(makeItem());
+      expect(result).to.be.instanceOf(Uint8Array);
+      expect(result.length).to.equal(0);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // moveItem
   // ---------------------------------------------------------------------------
   describe("moveItem()", () => {

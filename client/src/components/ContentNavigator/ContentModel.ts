@@ -54,7 +54,7 @@ export class ContentModel {
   }
 
   public async getContentByUri(uri: Uri): Promise<string> {
-    let data;
+    let data: string;
     try {
       data = (await this.contentAdapter.getContentOfUri(uri)).toString();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -73,8 +73,11 @@ export class ContentModel {
 
   public async downloadFile(item: ContentItem): Promise<Buffer | undefined> {
     try {
+      if (this.contentAdapter.getContentOfItemRaw) {
+        const bytes = await this.contentAdapter.getContentOfItemRaw(item);
+        return Buffer.from(bytes);
+      }
       const data = await this.contentAdapter.getContentOfItem(item);
-
       return Buffer.from(data, "binary");
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
@@ -119,7 +122,7 @@ export class ContentModel {
       }
 
       let number = 1;
-      let newFileName;
+      let newFileName: string;
       do {
         newFileName = l10n.t("{basename}_Copy{number}{ext}", {
           basename,

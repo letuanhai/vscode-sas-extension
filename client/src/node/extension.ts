@@ -37,7 +37,10 @@ import { getRestAPIs } from "../components/APIProvider";
 import { SASAuthProvider } from "../components/AuthProvider";
 import { installCAs } from "../components/CAHelper";
 import ContentNavigator from "../components/ContentNavigator";
-import { ContentSourceType } from "../components/ContentNavigator/types";
+import {
+  ContentSourceType,
+  FileManipulationEvent,
+} from "../components/ContentNavigator/types";
 import { setContext } from "../components/ExtensionContext";
 import LibraryNavigator from "../components/LibraryNavigator";
 import {
@@ -125,7 +128,7 @@ export function activate(context: ExtensionContext) {
     sourceType: ContentSourceType.SASServer,
     treeIdentifier: "serverdataprovider",
   });
-  const handleFileUpdated = (e) => {
+  const handleFileUpdated = (e: FileManipulationEvent) => {
     switch (e.type) {
       case "rename":
         sasDiagnostic.updateDiagnosticUri(e.uri, e.newUri);
