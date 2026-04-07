@@ -147,14 +147,23 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand("SAS.run", async () => {
       await run();
       await libraryNavigator.refresh();
+      // Fire-and-forget: tree refresh commands fire synchronous tree data events
+      commands.executeCommand("SAS.content.refreshContent");
+      commands.executeCommand("SAS.server.refreshContent");
     }),
     commands.registerCommand("SAS.runSelected", async (uri: Uri) => {
       await runSelected(uri);
       await libraryNavigator.refresh();
+      // Fire-and-forget: tree refresh commands fire synchronous tree data events
+      commands.executeCommand("SAS.content.refreshContent");
+      commands.executeCommand("SAS.server.refreshContent");
     }),
     commands.registerCommand("SAS.runRegion", async () => {
       await runRegion(client);
       await libraryNavigator.refresh();
+      // Fire-and-forget: tree refresh commands fire synchronous tree data events
+      commands.executeCommand("SAS.content.refreshContent");
+      commands.executeCommand("SAS.server.refreshContent");
     }),
     commands.registerCommand("SAS.close", (silent) => {
       closeSession(
