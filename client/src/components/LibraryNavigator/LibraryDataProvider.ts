@@ -200,6 +200,20 @@ class LibraryDataProvider
   public async fetchColumns(item: LibraryItem) {
     return await this.model.fetchColumns(item);
   }
+
+  public async reveal(item: LibraryItem): Promise<void> {
+    // Expand the library first if item is a table
+    if (item.type !== LibraryType) {
+      // Find the library item
+      const libraries = await this.model.getLibraries();
+      const library = libraries.find((lib) => lib.name === item.library);
+      if (library) {
+        await this._treeView.reveal(library, { expand: true });
+      }
+    }
+    // Reveal the item itself
+    await this._treeView.reveal(item, { select: true, focus: true });
+  }
 }
 
 export default LibraryDataProvider;

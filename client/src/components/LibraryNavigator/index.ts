@@ -4,6 +4,7 @@ import {
   ConfigurationChangeEvent,
   Disposable,
   ExtensionContext,
+  TabInputWebview,
   Uri,
   commands,
   env,
@@ -63,7 +64,10 @@ class LibraryNavigator implements SubscriptionProvider {
           item: LibraryItem,
           paginator: PaginatedResultSet<{ data: TableData; error?: Error }>,
           fetchColumns: () => Column[],
-          fetchRowCount: () => Promise<{ rowCount: number; columnCount?: number }>,
+          fetchRowCount: () => Promise<{
+            rowCount: number;
+            columnCount?: number;
+          }>,
         ) => {
           // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
           const existing = this.webviewManager.panels[item.uid] as
@@ -84,6 +88,30 @@ class LibraryNavigator implements SubscriptionProvider {
       commands.registerCommand("SAS.reloadActiveDataViewer", () =>
         this.reloadActiveDataViewer(),
       ),
+      commands.registerCommand("SAS.revealTableInLibraries", async () => {
+        // Get the active tab to determine which DataViewer triggered the command
+        const activeTab = window.tabGroups.activeTabGroup.activeTab;
+        if (activeTab?.input instanceof TabInputWebview) {
+          // The tab label is the uid of the DataViewer
+          const uid = activeTab.label;
+          const entry = this.openTables.get(uid);
+          if (entry) {
+            // First focus the libraries view
+            await commands.executeCommand("librarydataprovider.focus");
+            // Then reveal the table
+            await this.libraryDataProvider.reveal(entry.item);
+            return;
+          }
+        }
+        // Fall back to the most recently active DataViewer if tab identification fails
+        if (this.lastActiveDataViewerUid) {
+          const entry = this.openTables.get(this.lastActiveDataViewerUid);
+          if (entry) {
+            await commands.executeCommand("librarydataprovider.focus");
+            await this.libraryDataProvider.reveal(entry.item);
+          }
+        }
+      }),
       commands.registerCommand("SAS.reloadAllDataViewers", () =>
         this.reloadAllDataViewers(),
       ),
@@ -268,9 +296,9 @@ class LibraryNavigator implements SubscriptionProvider {
     // Fall back to the most recently active DataViewer.
     if (this.lastActiveDataViewerUid) {
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      const panel = this.webviewManager.panels[
-        this.lastActiveDataViewerUid
-      ] as DataViewer | undefined;
+      const panel = this.webviewManager.panels[this.lastActiveDataViewerUid] as
+        | DataViewer
+        | undefined;
       if (panel) {
         await fn(panel);
       }
