@@ -889,6 +889,11 @@
         "category": "SAS"
       },
       {
+        "command": "SAS.server.revealInSidebar",
+        "title": "Reveal in SAS File Tree",
+        "category": "SAS"
+      },
+      {
         "command": "SAS.content.reloadFromServer",
         "title": "Reload from Server",
         "category": "SAS"
@@ -1330,6 +1335,11 @@
       "editor/title/context": [
         {
           "command": "SAS.server.reloadFromServer",
+          "when": "resourceScheme == sasServer",
+          "group": "1_modification"
+        },
+        {
+          "command": "SAS.server.revealInSidebar",
           "when": "resourceScheme == sasServer",
           "group": "1_modification"
         },

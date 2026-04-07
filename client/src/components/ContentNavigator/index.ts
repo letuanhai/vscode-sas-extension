@@ -585,6 +585,23 @@ class ContentNavigator implements SubscriptionProvider {
         });
         await commands.executeCommand("workbench.action.files.revert");
       }),
+      commands.registerCommand(`${SAS}.revealInSidebar`, async (uri?: Uri) => {
+        const targetUri = uri ?? window.activeTextEditor?.document.uri;
+        if (!targetUri || targetUri.scheme !== this.sourceType) {
+          return;
+        }
+        try {
+          const item = await this.contentModel.getResourceByUri(targetUri);
+          if (item) {
+            this.contentDataProvider.reveal(item);
+          }
+        } catch (error) {
+          console.error("Failed to reveal item in sidebar:", error);
+          window.showErrorMessage(
+            l10n.t("Could not find the file in the SAS File Tree."),
+          );
+        }
+      }),
 
       workspace.onDidChangeConfiguration(
         async (event: ConfigurationChangeEvent) => {
