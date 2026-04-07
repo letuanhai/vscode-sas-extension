@@ -34,4 +34,7 @@
 - [x] 19. Automatically refresh SAS server content view (SAS extension sidebar) and SAS libraries view after SAS script execution finish
 - [x] 20. Downloading a zip file from the SAS server with the extension resulted in a malformed zip file. Investigate the issue: create tests to validate the issue, test with raw api call, use playwright-cli to test and investigate how SAS Studio web handle it
 - [ ] 21. Uploading a zip file to the SAS server with the VSCode extension resulted in a malformed zip file. Investigate the issue: create tests to validate the issue, test with raw api call, use playwright-cli to test and investigate how SAS Studio web handle it
-
+- [ ] 22. Change all file writing to use `'Content-Type': 'application/octet-stream'` so that all text encoding is handled by VSCode
+- [ ] 23. Add entry in context menu of SAS server file editor to focus the file in the SAS sidebar file tree, the entry should be under 'Reload from SAS Server'
+- [ ] 24. Add entry in context menu of SAS data viewer to focus the table in SAS Libraries view
+- [ ] 25. Temporary library created to open SAS dataset file (in task 4) should be hidden from Libraries view
