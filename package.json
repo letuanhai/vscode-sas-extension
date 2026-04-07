@@ -1340,6 +1340,11 @@
           "command": "SAS.reloadActiveDataViewer",
           "when": "activeWebviewPanelId == 'SAS.dataViewer'",
           "group": "navigation"
+        },
+        {
+          "command": "SAS.revealTableInLibraries",
+          "when": "activeWebviewPanelId == 'SAS.dataViewer'",
+          "group": "2_dataviewer"
         }
       ],
       "editor/title/context": [

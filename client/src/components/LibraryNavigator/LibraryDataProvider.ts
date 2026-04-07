@@ -174,6 +174,16 @@ class LibraryDataProvider
     return this.model.getChildren(item);
   }
 
+  public async getParent(
+    item: LibraryItem,
+  ): Promise<LibraryItem | undefined> {
+    if (item.type === LibraryType) {
+      return undefined;
+    }
+    const libraries = await this.model.getLibraries();
+    return libraries.find((lib) => lib.name === item.library);
+  }
+
   public writeTableContentsToStream(stream: Writable, item: LibraryItem) {
     return this.model.writeTableContentsToStream(stream, item);
   }
