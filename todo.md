@@ -22,7 +22,7 @@
   - [x] 6.11 fix reveal: when loading absolute path items, need to perform a folder navigation before reveal work
   - [x] 6.12 quick browser state persistence and active editor entry
   - [x] 6.13 Add an item call Copy SAS Server Path to the tab title context menu of SAS server files that will copy the file's uri to clipboard (this is needed because 'Copy Path' on Windows will change the path separator from "/" to "\", the added entry should copy the file uri verbatim); also rename 'Reload from Server' to 'Reload from SAS Server' in the tab title context menu
-  - [ ] 6.14. Opening bookmarked file item show error: `Failed to open file: Cannot read properties of undefined (reading 'path')` (opening bookmarked folder works fine)
+  - [x] 6.14. Opening bookmarked file item show error: `Failed to open file: Cannot read properties of undefined (reading 'path')` (opening bookmarked folder works fine)
 - [-] 7. add actions (to map keybinding) to focus sas sidebar file content/libraries section: already added
 - [x] 8. add actions/buttons to create new file/folder in the file content tree
 - [-] 9. fix sas sidebar file content/libraries section filtering: no need seems to work as expected, keep collapsed folders that is not loaded yet or containing matches
@@ -53,4 +53,3 @@
 - [x] 24. Add entry in context menu of SAS data viewer to focus the table in SAS Libraries view
      Added "Reveal in Libraries View" to `editor/title` menu (... dropdown) for DataViewer tabs. Uses `activeWebviewPanelId == 'SAS.dataViewer'` which correctly scopes to the active panel. `editor/title/context` (tab right-click) was not usable because `activeWebviewPanelId` is global state that bleeds across tabs. Also added `getParent()` to `LibraryDataProvider` which is required by VS Code's `TreeView.reveal()` API.
 - [x] 25. Temporary library created to open SAS dataset file (in task 4) should be hidden from Libraries view
-- [ ] 26. When I reactive an open SAS server file tab, the editor will automatically try to reload the file content from the SAS server but if the api request fail the editor content will be empty. Expected: the file content should only be replaced if reloading successful, otherwise the cached content is kept

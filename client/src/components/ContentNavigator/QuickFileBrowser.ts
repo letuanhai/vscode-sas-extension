@@ -497,22 +497,15 @@ export default class QuickFileBrowser {
           reload();
         } else {
           // Open file: use cached vsUri if available (history entries), otherwise
-          // reconstruct via getUri() (bookmarks added via button click have no vsUri)
+          // construct the sasServer URI directly from the stored server path.
           qp.busy = true;
-          const openUri: Promise<Uri> = s.vsUri
-            ? Promise.resolve(Uri.parse(s.vsUri))
-            : this.contentModel.getUri(
-                {
-                  id: s.uri,
-                  uri: s.uri,
-                  name: s.name,
-                  links: [],
-                  creationTimeStamp: 0,
-                  modifiedTimeStamp: 0,
-                  permission: { write: false, delete: false, addMember: false },
-                },
-                false,
-              );
+          const openUri: Promise<Uri> = Promise.resolve(
+            s.vsUri
+              ? Uri.parse(s.vsUri)
+              : Uri.parse(
+                  `sasServer:${s.uri.replace(/#/g, "%23").replace(/\?/g, "%3F")}`,
+                ),
+          );
           openUri
             .then((uri) => commands.executeCommand("SAS.server.openItem", uri))
             .then(() => {
