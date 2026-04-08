@@ -422,7 +422,7 @@ export default class QuickFileBrowser {
 
     // Rebuild items for the current folder without bumping the version counter
     // (uses cached data if available). Used after bookmark/history changes.
-    const refreshItems = (): void => {
+    const refreshItems = (restoreKey?: string): void => {
       void this.loadFolder(
         currentFolder(),
         qp,
@@ -432,6 +432,7 @@ export default class QuickFileBrowser {
         version.current,
         qp.value,
         this.store,
+        restoreKey,
       ).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         void window.showErrorMessage(`QuickFileBrowser error: ${msg}`);
@@ -592,16 +593,19 @@ export default class QuickFileBrowser {
           if (isFile && adding) {
             // Eagerly fetch vsUri so the bookmark can be opened later without a
             // live server call (which would fail on the synthetic ContentItem).
+            // Capture the key synchronously before the async call so focus can
+            // be restored to this item even if qp.activeItems shifts while awaiting.
+            const restoreKey = itemKey(it);
             this.contentModel
               .getUri(it.item, false)
               .then((uri) => {
                 this.store?.addBookmark(it.item, false, uri.toString());
-                refreshItems();
+                refreshItems(restoreKey);
               })
               .catch(() => {
                 // Fallback: store without vsUri (open will still try getUri later)
                 this.store?.addBookmark(it.item, false);
-                refreshItems();
+                refreshItems(restoreKey);
               });
           } else {
             this.store?.toggleBookmark(it.item, it.kind === "folder");
