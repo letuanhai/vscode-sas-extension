@@ -21,7 +21,6 @@
     "onNotebook:sas-notebook"
   ],
   "main": "./client/dist/node/extension",
-  "browser": "./client/dist/browser/extension",
   "l10n": "./l10n",
   "capabilities": {
     "untrustedWorkspaces": {
@@ -1793,7 +1792,7 @@
   "homepage": "https://www.sas.com",
   "qna": "https://marketplace.visualstudio.com/items?itemName=SAS.sas-lsp&ssr=false#qna",
   "scripts": {
-    "vscode:prepublish": "npm run lint && npm run compile && npm run compile-browser",
+    "vscode:prepublish": "npm run lint && npm run compile",
     "lint": "node node_modules/eslint/bin/eslint.js \"./client/src/**/*.ts\" \"./client/src/**/*.tsx\" \"./server/src/**/*.ts\"",
     "compile": "node ./tools/build.mjs",
     "watch": "node ./tools/build.mjs dev",

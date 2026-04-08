@@ -1,6 +1,8 @@
 // Copyright © 2022-2024, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
+  CallHierarchyIncomingCall,
   CallHierarchyIncomingCallsParams,
   CallHierarchyItem,
   CallHierarchyOutgoingCall,
@@ -27,271 +29,202 @@ import {
   DocumentSymbol,
   DocumentSymbolParams,
   ExecuteCommandParams,
+  Hover,
   HoverParams,
   InitializeParams,
   InitializeResult,
   LSPAny,
   Location,
   PrepareRenameParams,
+  Range,
   ReferenceParams,
   RenameParams,
   ResultProgressReporter,
+  SignatureHelp,
   SignatureHelpParams,
   SymbolInformation,
   TextDocumentPositionParams,
   WorkDoneProgressReporter,
+  WorkspaceEdit,
   WorkspaceSymbol,
   WorkspaceSymbolParams,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { IPythonMode } from "pyright-internal-node/dist/packages/pyright-internal/src/analyzer/sourceFile";
-import {
-  FileSystem,
-  ReadOnlyFileSystem,
-} from "pyright-internal-node/dist/packages/pyright-internal/src/common/fileSystem";
-import { ClientCapabilities } from "pyright-internal-node/dist/packages/pyright-internal/src/common/languageServerInterface";
-import { DocumentRange } from "pyright-internal-node/dist/packages/pyright-internal/src/common/textRange";
-import { Uri } from "pyright-internal-node/dist/packages/pyright-internal/src/common/uri/uri";
-import { CollectionResult } from "pyright-internal-node/dist/packages/pyright-internal/src/languageService/documentSymbolCollector";
-import { ParseFileResults } from "pyright-internal-node/dist/packages/pyright-internal/src/parser/parser";
-import { PyrightServer } from "pyright-internal-node/dist/packages/pyright-internal/src/server";
-
 import { LanguageServiceProvider } from "../../sas/LanguageServiceProvider";
-import { extractPythonCodes } from "../utils";
 
-export class PyrightLanguageProviderNode extends PyrightServer {
-  protected sasLspProvider?: (uri: string) => LanguageServiceProvider;
-
+export class PyrightLanguageProviderNode {
   constructor(
-    connection: Connection,
-    maxWorkers: number,
-    realFileSystem?: FileSystem,
-  ) {
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    super({ ...connection, listen() {} } as LSPAny, maxWorkers, realFileSystem);
-  }
+    _connection: Connection,
+    _maxWorkers: number,
+  ) {}
 
   public setSasLspProvider(
-    provider: (uri: string) => LanguageServiceProvider,
-  ): void {
-    this.sasLspProvider = provider;
-  }
+    _provider: (uri: string) => LanguageServiceProvider,
+  ): void {}
 
-  public getClientCapabilities(): ClientCapabilities {
-    return this.client;
-  }
-
-  protected setupConnection(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    supportedCommands: string[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    supportedCodeActions: string[],
-  ): void {
-    return;
-  }
-
-  public onInitialized(): void {
-    this.updateSettingsForAllWorkspaces();
-    super.onInitialized();
+  public getClientCapabilities(): {
+    hasVisualStudioExtensionsCapability: boolean;
+  } {
+    return { hasVisualStudioExtensionsCapability: false };
   }
 
   public async initialize(
-    params: InitializeParams,
-    supportedCommands: string[],
-    supportedCodeActions: string[],
+    _params: InitializeParams,
+    _supportedCommands: string[],
+    _supportedCodeActions: string[],
   ): Promise<InitializeResult> {
-    return super.initialize(params, supportedCommands, supportedCodeActions);
+    return { capabilities: {} };
   }
 
-  public addContentChange(doc: TextDocument): void {
-    const languageService = this.sasLspProvider!(doc.uri);
-    const pythonDoc = extractPythonCodes(doc, languageService);
+  public onInitialized(): void {}
 
-    this.onDidChangeTextDocument({
-      textDocument: doc,
-      contentChanges: [{ text: pythonDoc }],
-    });
-  }
+  public addContentChange(_doc: TextDocument): void {}
 
-  public async onHover(params: HoverParams, token: CancellationToken) {
-    return await super.onHover(params, token);
-  }
-
-  public async onDidOpenTextDocument(
-    params: DidOpenTextDocumentParams,
-    ipythonMode = IPythonMode.None,
-  ) {
-    const doc = TextDocument.create(
-      params.textDocument.uri,
-      "sas",
-      params.textDocument.version,
-      params.textDocument.text,
-    );
-    const languageService = this.sasLspProvider!(params.textDocument.uri);
-    const pythonDocContent = extractPythonCodes(doc, languageService);
-    const newParams: DidOpenTextDocumentParams = { ...params };
-    newParams.textDocument = { ...params.textDocument };
-    newParams.textDocument.languageId = "python";
-    newParams.textDocument.text = pythonDocContent;
-    await super.onDidOpenTextDocument(newParams, ipythonMode);
-  }
-
-  public async onDidCloseTextDocument(params: DidCloseTextDocumentParams) {
-    await super.onDidCloseTextDocument(params);
-  }
-
-  public onDidChangeConfiguration(params: DidChangeConfigurationParams): void {
-    super.onDidChangeConfiguration(params);
-  }
-
-  public async onDefinition(
-    params: TextDocumentPositionParams,
-    token: CancellationToken,
-  ): Promise<Definition | DefinitionLink[] | undefined | null> {
-    return await super.onDefinition(params, token);
-  }
-
-  public async onDeclaration(
-    params: TextDocumentPositionParams,
-    token: CancellationToken,
-  ): Promise<Declaration | DeclarationLink[] | undefined | null> {
-    return await super.onDeclaration(params, token);
-  }
-
-  public async onTypeDefinition(
-    params: TextDocumentPositionParams,
-    token: CancellationToken,
-  ): Promise<Definition | DefinitionLink[] | undefined | null> {
-    return await super.onTypeDefinition(params, token);
-  }
-
-  public async onReferences(
-    params: ReferenceParams,
-    token: CancellationToken,
-    workDoneReporter: WorkDoneProgressReporter,
-    resultReporter: ResultProgressReporter<Location[]> | undefined,
-    createDocumentRange?: (
-      uri: Uri,
-      result: CollectionResult,
-      parseResults: ParseFileResults,
-    ) => DocumentRange,
-    convertToLocation?: (
-      fs: ReadOnlyFileSystem,
-      ranges: DocumentRange,
-    ) => Location | undefined,
-  ): Promise<Location[] | null | undefined> {
-    return await super.onReferences(
-      params,
-      token,
-      workDoneReporter,
-      resultReporter,
-      createDocumentRange,
-      convertToLocation,
-    );
-  }
-
-  public async onDocumentSymbol(
-    params: DocumentSymbolParams,
-    token: CancellationToken,
-  ): Promise<DocumentSymbol[] | SymbolInformation[] | null | undefined> {
-    return await super.onDocumentSymbol(params, token);
-  }
-
-  public async onWorkspaceSymbol(
-    params: WorkspaceSymbolParams,
-    token: CancellationToken,
-    resultReporter: ResultProgressReporter<SymbolInformation[]> | undefined,
-  ): Promise<SymbolInformation[] | WorkspaceSymbol[] | null | undefined> {
-    return await super.onWorkspaceSymbol(params, token, resultReporter);
-  }
-
-  public async onDocumentHighlight(
-    params: DocumentHighlightParams,
-    token: CancellationToken,
-  ): Promise<DocumentHighlight[] | null | undefined> {
-    if (params.position.character < 0) {
-      return null;
-    }
-    return await super.onDocumentHighlight(params, token);
-  }
-
-  public async onSignatureHelp(
-    params: SignatureHelpParams,
-    token: CancellationToken,
-  ) {
-    return await super.onSignatureHelp(params, token);
+  public async onHover(
+    _params: HoverParams,
+    _token: CancellationToken,
+  ): Promise<Hover | null | undefined> {
+    return null;
   }
 
   public async onCompletion(
-    params: CompletionParams,
-    token: CancellationToken,
+    _params: CompletionParams,
+    _token: CancellationToken,
   ): Promise<CompletionList | null> {
-    return await super.onCompletion(params, token);
+    return null;
   }
 
   public async onCompletionResolve(
     params: CompletionItem,
-    token: CancellationToken,
+    _token: CancellationToken,
   ): Promise<CompletionItem> {
-    return await super.onCompletionResolve(params, token);
+    return params;
+  }
+
+  public async onDocumentSymbol(
+    _params: DocumentSymbolParams,
+    _token: CancellationToken,
+  ): Promise<DocumentSymbol[] | SymbolInformation[] | null | undefined> {
+    return null;
+  }
+
+  public async onWorkspaceSymbol(
+    _params: WorkspaceSymbolParams,
+    _token: CancellationToken,
+    _resultReporter?: ResultProgressReporter<SymbolInformation[]>,
+  ): Promise<SymbolInformation[] | WorkspaceSymbol[] | null | undefined> {
+    return null;
+  }
+
+  public async onDocumentHighlight(
+    _params: DocumentHighlightParams,
+    _token: CancellationToken,
+  ): Promise<DocumentHighlight[] | null | undefined> {
+    return null;
+  }
+
+  public async onSignatureHelp(
+    _params: SignatureHelpParams,
+    _token: CancellationToken,
+  ): Promise<SignatureHelp | null | undefined> {
+    return null;
+  }
+
+  public async onDefinition(
+    _params: TextDocumentPositionParams,
+    _token: CancellationToken,
+  ): Promise<Definition | DefinitionLink[] | undefined | null> {
+    return undefined;
+  }
+
+  public async onDeclaration(
+    _params: TextDocumentPositionParams,
+    _token: CancellationToken,
+  ): Promise<Declaration | DeclarationLink[] | undefined | null> {
+    return undefined;
+  }
+
+  public async onTypeDefinition(
+    _params: TextDocumentPositionParams,
+    _token: CancellationToken,
+  ): Promise<Definition | DefinitionLink[] | undefined | null> {
+    return undefined;
+  }
+
+  public async onReferences(
+    _params: ReferenceParams,
+    _token: CancellationToken,
+    _workDoneReporter: WorkDoneProgressReporter,
+    _resultReporter: ResultProgressReporter<Location[]> | undefined,
+    ...rest: unknown[]
+  ): Promise<Location[] | null | undefined> {
+    return undefined;
   }
 
   public async onPrepareRenameRequest(
-    params: PrepareRenameParams,
-    token: CancellationToken,
-  ) {
-    return await super.onPrepareRenameRequest(params, token);
+    _params: PrepareRenameParams,
+    _token: CancellationToken,
+  ): Promise<Range | { range: Range; placeholder: string } | null | undefined> {
+    return null;
   }
 
-  public async onRenameRequest(params: RenameParams, token: CancellationToken) {
-    if (params.position.character < 0) {
-      return null;
-    }
-    return await super.onRenameRequest(params, token);
+  public async onRenameRequest(
+    _params: RenameParams,
+    _token: CancellationToken,
+  ): Promise<WorkspaceEdit | null | undefined> {
+    return null;
   }
 
   public async onCallHierarchyPrepare(
-    params: CallHierarchyPrepareParams,
-    token: CancellationToken,
+    _params: CallHierarchyPrepareParams,
+    _token: CancellationToken,
   ): Promise<CallHierarchyItem[] | null> {
-    return await super.onCallHierarchyPrepare(params, token);
+    return null;
   }
 
   public async onCallHierarchyIncomingCalls(
-    params: CallHierarchyIncomingCallsParams,
-    token: CancellationToken,
-  ) {
-    return await super.onCallHierarchyIncomingCalls(params, token);
+    _params: CallHierarchyIncomingCallsParams,
+    _token: CancellationToken,
+  ): Promise<CallHierarchyIncomingCall[] | null> {
+    return null;
   }
 
   public async onCallHierarchyOutgoingCalls(
-    params: CallHierarchyOutgoingCallsParams,
-    token: CancellationToken,
+    _params: CallHierarchyOutgoingCallsParams,
+    _token: CancellationToken,
   ): Promise<CallHierarchyOutgoingCall[] | null> {
-    return await super.onCallHierarchyOutgoingCalls(params, token);
+    return null;
   }
 
-  public onDidChangeWatchedFiles(params: DidChangeWatchedFilesParams): void {
-    super.onDidChangeWatchedFiles(params);
-  }
+  public onDidChangeWatchedFiles(_params: DidChangeWatchedFilesParams): void {}
 
   public async onExecuteCommand(
-    params: ExecuteCommandParams,
-    token: CancellationToken,
-    reporter: WorkDoneProgressReporter,
-  ) {
-    return await super.onExecuteCommand(params, token, reporter);
+    _params: ExecuteCommandParams,
+    _token: CancellationToken,
+    _reporter: WorkDoneProgressReporter,
+  ): Promise<LSPAny | undefined> {
+    return undefined;
   }
 
-  public async onShutdown(token: CancellationToken): Promise<void> {
-    return await super.onShutdown(token);
-  }
+  public async onShutdown(_token: CancellationToken): Promise<void> {}
 
   public async executeCodeAction(
-    params: CodeActionParams,
-    token: CancellationToken,
+    _params: CodeActionParams,
+    _token: CancellationToken,
   ): Promise<(Command | CodeAction)[] | undefined | null> {
-    return await super.executeCodeAction(params, token);
+    return undefined;
   }
+
+  public async onDidOpenTextDocument(
+    _params: DidOpenTextDocumentParams,
+  ): Promise<void> {}
+
+  public async onDidCloseTextDocument(
+    _params: DidCloseTextDocumentParams,
+  ): Promise<void> {}
+
+  public onDidChangeConfiguration(
+    _params: DidChangeConfigurationParams,
+  ): void {}
 }

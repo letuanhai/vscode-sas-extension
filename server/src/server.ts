@@ -31,11 +31,17 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { ReadOnlyFileSystem } from "pyright-internal-node/dist/packages/pyright-internal/src/common/fileSystem";
-import { DocumentRange } from "pyright-internal-node/dist/packages/pyright-internal/src/common/textRange";
-import { Uri } from "pyright-internal-node/dist/packages/pyright-internal/src/common/uri/uri";
-import { CollectionResult } from "pyright-internal-node/dist/packages/pyright-internal/src/languageService/documentSymbolCollector";
-import { ParseFileResults } from "pyright-internal-node/dist/packages/pyright-internal/src/parser/parser";
+// Pyright types stubbed out - Python support disabled
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ReadOnlyFileSystem = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DocumentRange = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Uri = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CollectionResult = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ParseFileResults = any;
 
 import { PyrightLanguageProvider } from "./python/PyrightLanguageProvider";
 import { CodeZoneManager } from "./sas/CodeZoneManager";

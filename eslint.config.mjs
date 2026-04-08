@@ -19,6 +19,12 @@ const compat = new FlatCompat({
 });
 
 export default [
+  {
+    ignores: [
+      "server/src/browser/**",
+      "server/src/python/browser/**",
+    ],
+  },
   ...fixupConfigRules(
     compat.extends(
       "eslint:recommended",

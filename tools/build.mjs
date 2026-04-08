@@ -2,7 +2,9 @@ import concurrently from "concurrently";
 import esbuild from "esbuild";
 import fs from "fs";
 
-const dev = process.argv[2];
+const args = process.argv.slice(2);
+const dev = args.includes("dev");
+const target = args.find((a) => a.startsWith("--target="))?.split("=")[1];
 
 const plugins = [
   {
@@ -105,18 +107,6 @@ const copyKatexCss = () => {
 const copyFiles = (filter = null) => {
   const foldersToCopy = [
     {
-      src: "./server/node_modules/jsonc-parser/lib/umd/impl",
-      dest: "./server/dist/node/impl",
-    },
-    {
-      src: "./server/node_modules/pyright-internal-node/dist/packages/pyright-internal/typeshed-fallback",
-      dest: "./server/dist/node/typeshed-fallback",
-    },
-    {
-      src: "./server/src/python/sas",
-      dest: "./server/dist/node/typeshed-fallback/stubs/sas",
-    },
-    {
       src: "./client/src/components/notebook/exporters/templates",
       dest: "./client/dist/notebook/exporters/templates",
     },
@@ -146,16 +136,16 @@ const copyFiles = (filter = null) => {
 
 const staticFilesToWatch = ["./client/src/connection/itc/script"];
 
-if (process.env.npm_config_static) {
+if (target === "static") {
   copyFiles();
   if (dev) {
     staticFilesToWatch.forEach((pathToWatch) =>
       fs.watch(pathToWatch, () => copyFiles(pathToWatch)),
     );
   }
-} else if (process.env.npm_config_webviews || process.env.npm_config_client) {
+} else if (target === "webviews" || target === "client") {
   const ctx = await esbuild.context(
-    process.env.npm_config_webviews ? browserBuildOptions : nodeBuildOptions,
+    target === "webviews" ? browserBuildOptions : nodeBuildOptions,
   );
   await ctx.rebuild();
 
@@ -167,17 +157,17 @@ if (process.env.npm_config_static) {
 } else {
   const { result } = concurrently([
     {
-      command: `npm run ${process.env.npm_lifecycle_event} --webviews`,
+      command: `node ./tools/build.mjs ${dev ? "dev" : ""} --target=webviews`,
       name: "browser",
       prefixColor: "magenta",
     },
     {
-      command: `npm run ${process.env.npm_lifecycle_event} --client`,
+      command: `node ./tools/build.mjs ${dev ? "dev" : ""} --target=client`,
       name: "node",
       prefixColor: "cyan",
     },
     {
-      command: `npm run ${process.env.npm_lifecycle_event} --static`,
+      command: `node ./tools/build.mjs ${dev ? "dev" : ""} --target=static`,
       name: "static",
       prefixColor: "green",
     },
