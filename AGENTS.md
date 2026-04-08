@@ -302,6 +302,34 @@ The SAS server is also accessible via SSH:
 
 SSH access is useful for inspecting server-side logs, running SAS commands directly, or debugging connection issues outside of the extension.
 
+## Fork Maintenance
+
+This repo is a personal fork (`sasstudio-web`) of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension). Naming convention:
+
+| Item | Value |
+|---|---|
+| Branch | `sasstudio-web` |
+| Version | `{upstream}-sasstudio-web.{patch}` (e.g. `1.19.0-sasstudio-web.1`) |
+| Fork changelog | `CHANGELOG-SASSTUDIO-WEB.md` |
+| Upstream changelog | `CHANGELOG.md` (do not add fork entries here) |
+
+### Syncing with upstream
+
+Use the single rebase script — it handles backup, fetch, rebase, and version bump:
+
+```bash
+# First run: creates backup tag, fetches upstream, starts rebase
+./scripts/rebase-upstream.sh
+
+# If conflicts occur: resolve them, then re-run the same script
+./scripts/rebase-upstream.sh
+
+# Push after successful rebase
+git push --force-with-lease origin sasstudio-web
+```
+
+The script detects in-progress rebases automatically. Backup tags are created as `pre-rebase/{timestamp}` — restore with `git reset --hard pre-rebase/...` if needed.
+
 ## Do Not
 
 - Do not commit until the user explicitly ask for

@@ -29,9 +29,9 @@ else
   git tag "${BACKUP_TAG}"
   echo "  To restore: git rebase --abort  OR  git reset --hard ${BACKUP_TAG}"
 
-  # Step 2: Fetch upstream
+  # Step 2: Fetch upstream (--no-prune to avoid deleting our backup tag)
   echo "=== Step 2: Fetching upstream ==="
-  git fetch upstream
+  git fetch upstream --no-prune
 
   # Step 3: Rebase
   echo "=== Step 3: Rebasing onto upstream/main ==="
