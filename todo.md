@@ -53,3 +53,4 @@
 - [x] 24. Add entry in context menu of SAS data viewer to focus the table in SAS Libraries view
      Added "Reveal in Libraries View" to `editor/title` menu (... dropdown) for DataViewer tabs. Uses `activeWebviewPanelId == 'SAS.dataViewer'` which correctly scopes to the active panel. `editor/title/context` (tab right-click) was not usable because `activeWebviewPanelId` is global state that bleeds across tabs. Also added `getParent()` to `LibraryDataProvider` which is required by VS Code's `TreeView.reveal()` API.
 - [x] 25. Temporary library created to open SAS dataset file (in task 4) should be hidden from Libraries view
+- [ ] 26. When I reactive an open SAS server file tab, the editor will automatically try to reload the file content from the SAS server but if the api request fail the editor content will be empty. Expected: the file content should only be replaced if reloading successful, otherwise the cached content is kept
