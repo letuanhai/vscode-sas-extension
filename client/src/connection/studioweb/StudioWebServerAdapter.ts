@@ -340,48 +340,38 @@ class StudioWebServerAdapter implements ContentAdapter {
 
   public async getContentOfItem(item: ContentItem): Promise<string> {
     if (!(await ensureCredentials())) {
-      return "";
+      throw new Error("Not authenticated");
     }
     const axios = getAxios();
     const creds = getCredentials();
     if (!axios || !creds) {
-      return "";
+      throw new Error("Not connected");
     }
 
-    try {
-      // SAS Studio 3.8 uses double-slash: GET /sasexec/sessions/{id}/workspace//{path}
-      // Use arraybuffer so we get the raw bytes and can decode with the server's encoding.
-      const response = await axios.get(
-        workspaceUrl(creds.sessionId, item.uri),
-        { responseType: "arraybuffer" },
-      );
-      return new TextDecoder(getServerEncoding()).decode(response.data);
-    } catch (error) {
-      console.error("StudioWebServerAdapter.getContentOfItem error:", error);
-      return "";
-    }
+    // SAS Studio 3.8 uses double-slash: GET /sasexec/sessions/{id}/workspace//{path}
+    // Use arraybuffer so we get the raw bytes and can decode with the server's encoding.
+    const response = await axios.get(
+      workspaceUrl(creds.sessionId, item.uri),
+      { responseType: "arraybuffer" },
+    );
+    return new TextDecoder(getServerEncoding()).decode(response.data);
   }
 
   public async getContentOfItemRaw(item: ContentItem): Promise<Uint8Array> {
     if (!(await ensureCredentials())) {
-      return new Uint8Array();
+      throw new Error("Not authenticated");
     }
     const axios = getAxios();
     const creds = getCredentials();
     if (!axios || !creds) {
-      return new Uint8Array();
+      throw new Error("Not connected");
     }
 
-    try {
-      const response = await axios.get(
-        workspaceUrl(creds.sessionId, item.uri),
-        { responseType: "arraybuffer" },
-      );
-      return new Uint8Array(response.data);
-    } catch (error) {
-      console.error("StudioWebServerAdapter.getContentOfItemRaw error:", error);
-      return new Uint8Array();
-    }
+    const response = await axios.get(
+      workspaceUrl(creds.sessionId, item.uri),
+      { responseType: "arraybuffer" },
+    );
+    return new Uint8Array(response.data);
   }
 
   public async getContentOfUriRaw(uri: Uri): Promise<Uint8Array> {
