@@ -2,7 +2,7 @@
 
 All notable changes specific to the `sasstudio-web` fork are documented here. For upstream changes, see [CHANGELOG.md](./CHANGELOG.md).
 
-## [1.19.0-sasstudio-web.1] - 2026-04-08
+## [sasstudio-web.1] - 2026-04-10
 
 ### Added
 
@@ -30,6 +30,8 @@ All notable changes specific to the `sasstudio-web` fork are documented here. Fo
 - Add "Copy SAS Server Path" command to tab context menu for server files
 - Add "Reload from Server" command (renamed from "Revert from Server") for server files
 - Hide temporary libraries (Work, Webwork, etc.) from Libraries view by default
+- Add `package:fork` npm script to include fork changelog in packaged .vsix (combines CHANGELOG-SASSTUDIO-WEB.md + CHANGELOG.md during packaging)
+- Add fork maintenance documentation and rebase workflow to AGENTS.md
 
 ### Fixed
 
@@ -49,6 +51,9 @@ All notable changes specific to the `sasstudio-web` fork are documented here. Fo
 - Fix DataViewer column ordering in Columns tab
 - Fix DataViewer column resize and reset behavior
 - Fix tab menu to pass correct URI to `reloadFromServer` and `copyServerPath` commands
+- Preserve cached editor content when file reload from server fails (prevents data loss on network errors)
+- Preserve focus in QuickFileBrowser when bookmarking a file via button click
+- Fix opening of bookmarked files by constructing sasServer URI directly (resolves path resolution issues)
 
 ### Changed
 
