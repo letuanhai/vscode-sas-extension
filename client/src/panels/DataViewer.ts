@@ -121,6 +121,10 @@ class DataViewer extends WebView {
         "SQLite3 Editor extension is required. Install it?",
       ),
       Install: l10n.t("Install"),
+      "Expand Table": l10n.t("Expand Table"),
+      "Expand table to full view": l10n.t("Expand table to full view"),
+      "Restore View": l10n.t("Restore View"),
+      "Restore full view with all controls": l10n.t("Restore full view with all controls"),
     };
   }
 

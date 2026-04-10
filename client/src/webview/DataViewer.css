@@ -25,6 +25,47 @@ body,
   flex-direction: column;
 }
 
+/* Expanded mode - hide all UI except the data table */
+.data-viewer.expanded {
+  padding: 0;
+}
+
+.data-viewer.expanded .title-bar,
+.data-viewer.expanded .tab-bar-wrapper,
+.data-viewer.expanded .filter-wrapper,
+.data-viewer.expanded .column-width-toolbar {
+  display: none !important;
+}
+
+.data-viewer.expanded .ag-grid-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.expanded-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--vscode-editorGroup-border);
+  gap: 0.5rem;
+}
+
+.expanded-toolbar button {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  border-radius: 2px;
+  font-size: 0.8em;
+}
+
+.expanded-toolbar button:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
 .title-bar {
   margin-bottom: 0.25rem;
 }

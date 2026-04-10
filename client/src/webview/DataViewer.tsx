@@ -1,6 +1,6 @@
 // Copyright © 2023, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { CellClickedEvent } from "ag-grid-community";
@@ -32,6 +32,7 @@ const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 const copyHintKey = isMac ? "Cmd+C" : "Ctrl+C";
 
 const DataViewer = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const title = document
     .querySelector("[data-title]")
     .getAttribute("data-title");
@@ -206,7 +207,7 @@ const DataViewer = () => {
     .join(", ");
 
   return (
-    <div className="data-viewer">
+    <div className={`data-viewer ${isExpanded ? "expanded" : ""}`}>
       <div className="title-bar">
         <span className="table-title">{title}</span>
       </div>
@@ -272,6 +273,14 @@ const DataViewer = () => {
           >
             {localize("Open in SQLite Editor")}
           </button>
+          <span className="toolbar-separator" />
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            title={localize("Expand table to full view")}
+          >
+            {localize("Expand Table")}
+          </button>
         </div>
         {columnMenu && <ColumnMenu {...columnMenu} />}
         <div
@@ -279,6 +288,17 @@ const DataViewer = () => {
           style={gridStyles}
           onClick={() => columnMenu && dismissMenuWithoutFocus()}
         >
+          {isExpanded && (
+            <div className="expanded-toolbar">
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                title={localize("Restore full view with all controls")}
+              >
+                {localize("Restore View")}
+              </button>
+            </div>
+          )}
           <AgGridReact
             ref={gridRef}
             cacheBlockSize={100}
