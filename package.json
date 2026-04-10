@@ -1793,6 +1793,7 @@
   "qna": "https://marketplace.visualstudio.com/items?itemName=SAS.sas-lsp&ssr=false#qna",
   "scripts": {
     "vscode:prepublish": "npm run lint && npm run compile",
+    "package:fork": "node ./tools/package-with-changelog.mjs",
     "lint": "node node_modules/eslint/bin/eslint.js \"./client/src/**/*.ts\" \"./client/src/**/*.tsx\" \"./server/src/**/*.ts\"",
     "compile": "node ./tools/build.mjs",
     "watch": "node ./tools/build.mjs dev",

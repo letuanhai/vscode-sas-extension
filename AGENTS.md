@@ -15,7 +15,8 @@ npm run test         # compile + typecheck + run all tests (server + harness + i
 npm run test-client  # @vscode/test-cli integration tests (downloads VS Code, runs in extension host)
 npm run test-harness # Mocha direct-import tests (no VS Code, fast)
 npm run test-server  # Mocha + ts-node for server only
-npx @vscode/vsce package  # package extension as .vsix (runs lint + compile first)
+npm run package:fork      # package extension as .vsix with combined changelog
+npx @vscode/vsce package  # package with original changelog (avoid - use npm run package:fork instead)
 ```
 
 Type-check only (faster than full test):
@@ -312,6 +313,22 @@ This repo is a personal fork (`sasstudio-web`) of [sassoftware/vscode-sas-extens
 | Version | `{upstream}-sasstudio-web.{patch}` (e.g. `1.19.0-sasstudio-web.1`) |
 | Fork changelog | `CHANGELOG-SASSTUDIO-WEB.md` |
 | Upstream changelog | `CHANGELOG.md` (do not add fork entries here) |
+
+### Packaging
+
+When creating a distributable `.vsix` file, use the custom package script:
+
+```bash
+npm run package:fork              # Creates .vsix with combined changelog
+npm run package:fork -- --out ./dist/my-package.vsix  # With custom output path
+```
+
+This script:
+1. Temporarily combines `CHANGELOG-SASSTUDIO-WEB.md` + `CHANGELOG.md`
+2. Runs `vsce package` with the combined changelog
+3. Restores the original `CHANGELOG.md` (keeping it clean for upstream sync)
+
+**Important:** Never edit `CHANGELOG.md` directly — add fork-specific changes to `CHANGELOG-SASSTUDIO-WEB.md` instead.
 
 ### Syncing with upstream
 
