@@ -4,6 +4,7 @@
   "scopeName": "source.sas-log",
   "fileTypes": [],
   "patterns": [
+    { "include": "#include-file" },
     { "include": "#error-line" },
     { "include": "#warning-line" },
     { "include": "#note-line" },
@@ -31,6 +32,14 @@
       "match": "^\\s*(\\d+)\\s*(?<=[\\d ]{9})[ +]",
       "captures": {
         "1": { "name": "comment.sas-log" }
+      }
+    },
+    "include-file": {
+      "match": "^\\s*(\\d+)\\s*(?<=[\\d ]{9})[ +]",
+      "match": "^\\s*NOTE: %INCLUDE \\(level (\\d+)\\).*$",
+      "captures": {
+        "0": { "name": "constant.language.sas-log" },
+        "1": { "name": "constant.numeric.sas-log" }
       }
     }
   }

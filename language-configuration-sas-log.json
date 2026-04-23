@@ -1,0 +1,8 @@
+{
+  "folding": {
+    "markers": {
+      "start": "^\\s*NOTE: %INCLUDE \\(level \\d+\\) file",
+      "end": "^\\s*NOTE: %INCLUDE \\(level \\d+\\) ending."
+    }
+  }
+}

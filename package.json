@@ -1657,7 +1657,8 @@
         "configuration": "./language-configuration.json"
       },
       {
-        "id": "sas-log"
+        "id": "sas-log",
+        "configuration": "./language-configuration-sas-log.json"
       }
     ],
     "grammars": [
