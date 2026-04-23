@@ -1678,6 +1678,11 @@
           "source.sql": "sql",
           "source.r": "r"
         }
+      },
+      {
+        "language": "sas-log",
+        "scopeName": "source.sas-log",
+        "path": "./syntaxes/sas-log.tmLanguage.json"
       }
     ],
     "themes": [

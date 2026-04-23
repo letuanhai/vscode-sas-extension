@@ -19,6 +19,7 @@ import {
   setServerEncoding,
 } from "./state";
 import { Config } from "./types";
+import { LogLineTypeEnum } from '../rest/api/compute';
 export type { Config };
 
 let sessionInstance: StudioWebSession;
@@ -36,24 +37,6 @@ function stripHtml(html: string): string {
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&amp;/gi, "&");
-}
-
-/**
- * Determines the log line type from a plain text log line.
- */
-function getLogLineType(
-  line: string,
-): "error" | "warning" | "note" | "normal" {
-  if (/ERROR:/i.test(line)) {
-    return "error";
-  }
-  if (/WARNING:/i.test(line)) {
-    return "warning";
-  }
-  if (/NOTE:/i.test(line)) {
-    return "note";
-  }
-  return "normal";
 }
 
 // ---------------------------------------------------------------------------
@@ -348,10 +331,12 @@ export class StudioWebSession extends Session {
             const lines = plainText
               .split("\n")
               .filter((line: string) => line.trim() !== "")
-              .map((line: string) => ({
-                type: getLogLineType(line),
-                line,
-              }));
+              .map(
+                (line: string): { type: LogLineTypeEnum; line: string } => ({
+                  type: "normal",
+                  line,
+                }),
+              );
 
             if (lines.length > 0) {
               this._onExecutionLogFn?.(lines);
@@ -379,10 +364,12 @@ export class StudioWebSession extends Session {
           const dataSets: Array<{ member: string; library: string }> =
             payload?.dataSets ?? [];
           if (dataSets.length > 0) {
-            const dataSetLines = dataSets.map(({ library, member }) => ({
-              type: "note" as const,
-              line: `NOTE: Output dataset: ${library}.${member}`,
-            }));
+            const dataSetLines = dataSets.map(
+              ({ library, member }): { type: LogLineTypeEnum; line: string } => ({
+                type: "normal",
+                line: `Output dataset: ${library}.${member}`,
+              }),
+            );
             this._onExecutionLogFn?.(dataSetLines);
             runResult = {
               ...runResult,

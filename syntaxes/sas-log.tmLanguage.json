@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SAS Log",
+  "scopeName": "source.sas-log",
+  "fileTypes": [],
+  "patterns": [
+    { "include": "#error-line" },
+    { "include": "#warning-line" },
+    { "include": "#note-line" },
+    { "include": "#output-dataset-line" },
+    { "include": "#source-line" }
+  ],
+  "repository": {
+    "error-line": {
+      "match": "^\\s*(?i)ERROR.*:.*$",
+      "name": "invalid.sas-log"
+    },
+    "warning-line": {
+      "match": "^\\s*(?i)WARNING.*:.*$",
+      "name": "markup.deleted.sas-log"
+    },
+    "note-line": {
+      "match": "^\\s*(?i)NOTE.*:.*$",
+      "name": "constant.language.sas-log"
+    },
+    "output-dataset-line": {
+      "match": "^Output dataset: .*$",
+      "name": "constant.numeric.sas-log"
+    },
+    "source-line": {
+      "match": "^\\s*(\\d+)\\s*(?<=[\\d ]{9})[ +]",
+      "captures": {
+        "1": { "name": "comment.sas-log" }
+      }
+    }
+  }
+}
