@@ -47,3 +47,7 @@ run-harness.cjs
 run-harness-test.js
 *.vsix
 *.node
+*.swp
+*.backup
+CHANGELOG-SASSTUDIO-WEB.md
+.vscode*

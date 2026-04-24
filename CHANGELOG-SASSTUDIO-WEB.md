@@ -2,6 +2,16 @@
 
 All notable changes specific to the `sasstudio-web` fork are documented here. For upstream changes, see [CHANGELOG.md](./CHANGELOG.md).
 
+## [sasstudio-web.2] - 2026-04-24
+
+### Added
+
+- Add code folding for data step `do`/`end` blocks (server-side LSP folding)
+- Add code folding for data step `select`/`end` blocks
+- Add code folding for macro `%do`/`%end` blocks in all scopes: global, inside `%macro`, inside DATA, inside PROC, and mid-statement (`%if ... %then %do`)
+- Add universal TextMate grammar for SAS log highlighting (studioweb)
+- Add folding support for SAS `%INCLUDE` macros in log output (studioweb)
+
 ## [sasstudio-web.1] - 2026-04-10
 
 ### Added
