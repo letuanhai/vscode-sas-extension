@@ -166,14 +166,97 @@ run;`);
     assert.strictEqual(otherwiseDo!.endLine, 7);
   });
 
-  it("does not fold do inside proc steps", () => {
+  it("folds select block with end;", () => {
+    const doc = createDoc(`data _null_;
+    select (grade);
+        when ('A') gpa = 4.0;
+        when ('B') gpa = 3.0;
+        otherwise gpa = 0;
+    end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const selectRange = ranges.find((r) => r.startLine === 1);
+    assert.exists(selectRange, "SELECT block should fold");
+    assert.strictEqual(selectRange!.endLine, 5);
+  });
+
+  it("folds select without expression", () => {
+    const doc = createDoc(`data _null_;
+    select;
+        when (x > 0) y = 1;
+        otherwise y = 0;
+    end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const selectRange = ranges.find((r) => r.startLine === 1);
+    assert.exists(selectRange, "SELECT block should fold");
+    assert.strictEqual(selectRange!.endLine, 4);
+  });
+
+  it("folds nested select inside do", () => {
+    const doc = createDoc(`data _null_;
+    do i = 1 to 10;
+        select (i);
+            when (1) x = 1;
+            otherwise x = 0;
+        end;
+    end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 1);
+    const selectRange = ranges.find((r) => r.startLine === 2);
+    assert.exists(doRange, "DO block should fold");
+    assert.exists(selectRange, "SELECT block should fold");
+    assert.strictEqual(doRange!.endLine, 6);
+    assert.strictEqual(selectRange!.endLine, 5);
+  });
+
+  it("folds select with do inside when", () => {
+    const doc = createDoc(`data _null_;
+    select;
+        when (1) do;
+            x = 1;
+        end;
+    end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const selectRange = ranges.find((r) => r.startLine === 1);
+    const doRange = ranges.find((r) => r.startLine === 2);
+    assert.exists(selectRange, "SELECT block should fold");
+    assert.exists(doRange, "DO block inside WHEN should fold");
+    assert.strictEqual(selectRange!.endLine, 5);
+    assert.strictEqual(doRange!.endLine, 4);
+  });
+
+  it("closes open select blocks when data step ends with run", () => {
+    const doc = createDoc(`data _null_;
+    select;
+        when (1) x = 1;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const selectRange = ranges.find((r) => r.startLine === 1);
+    assert.exists(selectRange, "SELECT block should be closed by RUN");
+    assert.strictEqual(selectRange!.endLine, 3);
+  });
+
+  it("does not fold select inside proc steps", () => {
     const doc = createDoc(`proc sql;
     select * from t;
 quit;`);
     const lsp = new LanguageServiceProvider(doc);
     const ranges = lsp.getFoldingRanges();
 
-    const doRange = ranges.find((r) => r.startLine === 1);
-    assert.notExists(doRange, "Should not fold inside PROC");
+    const selectRange = ranges.find((r) => r.startLine === 1);
+    assert.notExists(selectRange, "Should not fold inside PROC");
   });
 });

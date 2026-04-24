@@ -156,6 +156,7 @@ export class LexerEx {
     GBL: 3,
     CUSTOM: 4,
     DO: 5,
+    SELECT: 6,
   };
 
   constructor(private model: Model) {
@@ -713,7 +714,7 @@ export class LexerEx {
     }
     this.currSection = this.currSection.outerBlock;
   }
-  private closeDoBlocks_(pos: TextPosition) {
+  private closeInnerDataBlocks_(pos: TextPosition) {
     while (this.currSection && this.currSection.type === this.SEC_TYPE.DO) {
       this.endFoldingBlock_(this.SEC_TYPE.DO, pos);
     }
@@ -2708,13 +2709,14 @@ export class LexerEx {
 
       if (token.text === ";") {
         //statement ends
-        const isDataEndDo =
+        const isDataEndBlock =
           this.curr.state === this.PARSING_STATE.IN_DATA &&
           this.curr.name === "END" &&
-          this.currSection?.type === this.SEC_TYPE.DO;
+          (this.currSection?.type === this.SEC_TYPE.DO ||
+            this.currSection?.type === this.SEC_TYPE.SELECT);
         this.stack.pop();
-        if (isDataEndDo) {
-          this.endFoldingBlock_(this.SEC_TYPE.DO, token.end);
+        if (isDataEndBlock && this.currSection) {
+          this.endFoldingBlock_(this.currSection.type, token.end);
         }
       } else if (Lexer.isWord[token.type] && !token.notCheckKeyword) {
         if (
@@ -2722,6 +2724,16 @@ export class LexerEx {
           this.curr.state === this.PARSING_STATE.IN_DATA
         ) {
           this.startFoldingBlock_(this.SEC_TYPE.DO, token.start, "DO");
+        }
+        if (
+          token.text === "SELECT" &&
+          this.curr.state === this.PARSING_STATE.IN_DATA
+        ) {
+          this.startFoldingBlock_(
+            this.SEC_TYPE.SELECT,
+            token.start,
+            "SELECT",
+          );
         }
         if (this.curr.name === "ODS") {
           this.handleODSStmt_(token);
@@ -3284,7 +3296,7 @@ export class LexerEx {
           case "DATA":
             //no normal end, and another data meet, there are syntax errors
             // ignore
-            this.closeDoBlocks_(this.lastToken.end);
+            this.closeInnerDataBlocks_(this.lastToken.end);
             if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
               this.tryPromoteCustomBlock_();
             } else {
@@ -3300,7 +3312,7 @@ export class LexerEx {
             break;
           case "PROC":
           case "PROCEDURE": {
-            this.closeDoBlocks_(this.lastToken.end);
+            this.closeInnerDataBlocks_(this.lastToken.end);
             if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
               this.tryPromoteCustomBlock_();
             } else {
@@ -3324,7 +3336,7 @@ export class LexerEx {
             break;
           }
           case "%MACRO":
-            this.closeDoBlocks_(this.lastToken.end);
+            this.closeInnerDataBlocks_(this.lastToken.end);
             if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
               this.tryPromoteCustomBlock_();
             } else {
@@ -3377,6 +3389,13 @@ export class LexerEx {
               const validName = this._cleanKeyword(word);
               if (validName === "DO") {
                 this.startFoldingBlock_(this.SEC_TYPE.DO, token.start, "DO");
+              }
+              if (validName === "SELECT") {
+                this.startFoldingBlock_(
+                  this.SEC_TYPE.SELECT,
+                  token.start,
+                  "SELECT",
+                );
               }
               const state: any = {
                 parse: this.readDataStmt_,
@@ -3776,7 +3795,7 @@ export class LexerEx {
         this.stack.pop();
         this.stack.pop();
         if (wasData) {
-          this.closeDoBlocks_(token.end);
+          this.closeInnerDataBlocks_(token.end);
         }
         this.endFoldingBlock_(
           wasData ? this.SEC_TYPE.DATA : this.SEC_TYPE.PROC,
