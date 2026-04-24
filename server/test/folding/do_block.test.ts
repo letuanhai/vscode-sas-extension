@@ -260,3 +260,139 @@ quit;`);
     assert.notExists(selectRange, "Should not fold inside PROC");
   });
 });
+
+describe("Macro %do block folding", () => {
+  it("folds %do/%end in global scope", () => {
+    const doc = createDoc(`%do i = 1 %to 10;
+    %put &i;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 0);
+    assert.exists(doRange, "%DO block should fold");
+    assert.strictEqual(doRange!.endLine, 2);
+  });
+
+  it("folds %if ... %then %do; ... %end;", () => {
+    const doc = createDoc(`%if &syscc > 4 %then %do;
+    %put ERROR: something failed;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 0);
+    assert.exists(doRange, "%DO after %THEN should fold");
+    assert.strictEqual(doRange!.endLine, 2);
+  });
+
+  it("folds nested %do blocks", () => {
+    const doc = createDoc(`%do i = 1 %to 3;
+    %do j = 1 %to 3;
+        %put &i &j;
+    %end;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const outerDo = ranges.find((r) => r.startLine === 0);
+    const innerDo = ranges.find((r) => r.startLine === 1);
+
+    assert.exists(outerDo, "Outer %DO block should exist");
+    assert.exists(innerDo, "Inner %DO block should exist");
+    assert.strictEqual(outerDo!.endLine, 4);
+    assert.strictEqual(innerDo!.endLine, 3);
+  });
+
+  it("folds %do enclosing data step", () => {
+    const doc = createDoc(`%do i = 1 %to 2;
+    data _null_;
+        x = &i;
+    run;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 0);
+    assert.exists(doRange, "%DO block should span DATA step");
+    assert.strictEqual(doRange!.endLine, 4);
+  });
+
+  it("folds %do enclosing macro definition", () => {
+    const doc = createDoc(`%do i = 1 %to 2;
+    %macro foo;
+        %put &i;
+    %mend;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 0);
+    assert.exists(doRange, "%DO block should span %MACRO definition");
+    assert.strictEqual(doRange!.endLine, 4);
+  });
+
+  it("preserves outer %do when inner %macro/%mend ends", () => {
+    const doc = createDoc(`%macro outer;
+    %do i = 1 %to 2;
+        %macro inner;
+            %put &i;
+        %mend;
+    %end;
+%mend;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const macroOuter = ranges.find((r) => r.startLine === 0);
+    const doRange = ranges.find((r) => r.startLine === 1);
+    const macroInner = ranges.find((r) => r.startLine === 2);
+
+    assert.exists(macroOuter, "Outer MACRO should fold");
+    assert.exists(doRange, "%DO block should survive inner %mend");
+    assert.exists(macroInner, "Inner MACRO should fold");
+    assert.strictEqual(macroOuter!.endLine, 6);
+    assert.strictEqual(doRange!.endLine, 5);
+    assert.strictEqual(macroInner!.endLine, 4);
+  });
+
+  it("folds %do inside data step", () => {
+    const doc = createDoc(`data _null_;
+    %do i = 1 %to 3;
+        x = &i;
+    %end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 1);
+    assert.exists(doRange, "%DO block inside DATA should fold");
+    assert.strictEqual(doRange!.endLine, 3);
+  });
+
+  it("folds %do inside proc step", () => {
+    const doc = createDoc(`proc print;
+    %do i = 1 %to 3;
+        var x&i;
+    %end;
+run;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const ranges = lsp.getFoldingRanges();
+
+    const doRange = ranges.find((r) => r.startLine === 1);
+    assert.exists(doRange, "%DO block inside PROC should fold");
+    assert.strictEqual(doRange!.endLine, 3);
+  });
+
+  it("includes %do blocks in document symbols", () => {
+    const doc = createDoc(`%do i = 1 %to 3;
+    %put &i;
+%end;`);
+    const lsp = new LanguageServiceProvider(doc);
+    const symbols = lsp.getDocumentSymbols();
+
+    assert.ok(
+      symbols.some((s) => s.name.startsWith("%DO")),
+      "Should have a %DO symbol",
+    );
+  });
+});

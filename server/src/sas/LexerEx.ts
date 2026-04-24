@@ -157,6 +157,7 @@ export class LexerEx {
     CUSTOM: 4,
     DO: 5,
     SELECT: 6,
+    MACRO_DO: 7,
   };
 
   constructor(private model: Model) {
@@ -715,9 +716,21 @@ export class LexerEx {
     this.currSection = this.currSection.outerBlock;
   }
   private closeInnerDataBlocks_(pos: TextPosition) {
-    while (this.currSection && this.currSection.type === this.SEC_TYPE.DO) {
-      this.endFoldingBlock_(this.SEC_TYPE.DO, pos);
+    while (
+      this.currSection &&
+      (this.currSection.type === this.SEC_TYPE.DO ||
+        this.currSection.type === this.SEC_TYPE.SELECT)
+    ) {
+      this.endFoldingBlock_(this.currSection.type, pos);
     }
+  }
+  private isMacroScope_(): boolean {
+    return (
+      this.curr.state === this.PARSING_STATE.IN_GBL ||
+      this.curr.state === this.PARSING_STATE.IN_MACRO ||
+      this.curr.state === this.PARSING_STATE.IN_DATA ||
+      this.curr.state === this.PARSING_STATE.IN_PROC
+    );
   }
   private hasFoldingBlock_(): boolean {
     return !!this.currSection;
@@ -1803,6 +1816,16 @@ export class LexerEx {
       } else if (!this.hasFoldingBlock_()) {
         this.startFoldingBlock_(this.SEC_TYPE.GBL, token.start, word);
       }
+      if (word === "%DO") {
+        if (this.currSection?.type === this.SEC_TYPE.GBL) {
+          this.endFoldingBlock_(this.SEC_TYPE.GBL, token.start);
+        }
+        this.startFoldingBlock_(
+          this.SEC_TYPE.MACRO_DO,
+          token.start,
+          "%DO",
+        );
+      }
       this.stack.push({
         parse: this.readGbl_,
         state: this.PARSING_STATE.IN_GBL,
@@ -2714,9 +2737,15 @@ export class LexerEx {
           this.curr.name === "END" &&
           (this.currSection?.type === this.SEC_TYPE.DO ||
             this.currSection?.type === this.SEC_TYPE.SELECT);
+        const isMacroEndBlock =
+          this.curr.name === "%END" &&
+          this.currSection?.type === this.SEC_TYPE.MACRO_DO;
         this.stack.pop();
         if (isDataEndBlock && this.currSection) {
           this.endFoldingBlock_(this.currSection.type, token.end);
+        }
+        if (isMacroEndBlock) {
+          this.endFoldingBlock_(this.SEC_TYPE.MACRO_DO, token.end);
         }
       } else if (Lexer.isWord[token.type] && !token.notCheckKeyword) {
         if (
@@ -2733,6 +2762,19 @@ export class LexerEx {
             this.SEC_TYPE.SELECT,
             token.start,
             "SELECT",
+          );
+        }
+        if (token.text === "%DO" && this.isMacroScope_()) {
+          if (
+            this.curr.state === this.PARSING_STATE.IN_GBL &&
+            this.currSection?.type === this.SEC_TYPE.GBL
+          ) {
+            this.endFoldingBlock_(this.SEC_TYPE.GBL, token.start);
+          }
+          this.startFoldingBlock_(
+            this.SEC_TYPE.MACRO_DO,
+            token.start,
+            "%DO",
           );
         }
         if (this.curr.name === "ODS") {
@@ -3187,6 +3229,13 @@ export class LexerEx {
             }
             if (generalProcStmt) {
               const validName = this._cleanKeyword(word);
+              if (validName === "%DO") {
+                this.startFoldingBlock_(
+                  this.SEC_TYPE.MACRO_DO,
+                  token.start,
+                  "%DO",
+                );
+              }
               const state: any = {
                 parse: this.readProcStmt_,
                 state: this.PARSING_STATE.IN_PROC,
@@ -3397,6 +3446,13 @@ export class LexerEx {
                   "SELECT",
                 );
               }
+              if (validName === "%DO") {
+                this.startFoldingBlock_(
+                  this.SEC_TYPE.MACRO_DO,
+                  token.start,
+                  "%DO",
+                );
+              }
               const state: any = {
                 parse: this.readDataStmt_,
                 state: this.PARSING_STATE.IN_DATA,
@@ -3575,6 +3631,13 @@ export class LexerEx {
               this.handleMref_(this.PARSING_STATE.IN_MACRO);
             } else {
               const validName = this._cleanKeyword(word);
+              if (validName === "%DO") {
+                this.startFoldingBlock_(
+                  this.SEC_TYPE.MACRO_DO,
+                  token.start,
+                  "%DO",
+                );
+              }
               const state: any = {
                 parse: this.readMacroStmt_,
                 state: this.PARSING_STATE.IN_MACRO,
@@ -3632,8 +3695,10 @@ export class LexerEx {
       } else {
         word = token.text;
         if (word === "PROC" || word === "PROCEDURE") {
-          if (this.currSection?.type !== this.SEC_TYPE.CUSTOM) {
+          if (this.currSection?.type === this.SEC_TYPE.GBL) {
             this.endFoldingBlock_(this.SEC_TYPE.GBL, this.lastToken.end);
+          } else if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
+            this.tryPromoteCustomBlock_();
           }
           this.startFoldingBlock_(this.SEC_TYPE.PROC, token.start, word);
           token.type = Lexer.TOKEN_TYPES.SKEYWORD;
@@ -3650,8 +3715,10 @@ export class LexerEx {
             name: procName,
           });
         } else if (word === "%MACRO") {
-          if (this.currSection?.type !== this.SEC_TYPE.CUSTOM) {
+          if (this.currSection?.type === this.SEC_TYPE.GBL) {
             this.endFoldingBlock_(this.SEC_TYPE.GBL, this.lastToken.end);
+          } else if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
+            this.tryPromoteCustomBlock_();
           }
           this.startFoldingBlock_(this.SEC_TYPE.MACRO, token.start, word);
           token.type = Lexer.TOKEN_TYPES.MSKEYWORD;
@@ -3665,8 +3732,10 @@ export class LexerEx {
             state: this.PARSING_STATE.IN_MACRO,
           });
         } else if (word === "DATA") {
-          if (this.currSection?.type !== this.SEC_TYPE.CUSTOM) {
+          if (this.currSection?.type === this.SEC_TYPE.GBL) {
             this.endFoldingBlock_(this.SEC_TYPE.GBL, this.lastToken.end);
+          } else if (this.currSection?.type === this.SEC_TYPE.CUSTOM) {
+            this.tryPromoteCustomBlock_();
           }
           this.startFoldingBlock_(this.SEC_TYPE.DATA, token.start, word);
           token.type = Lexer.TOKEN_TYPES.SKEYWORD;
@@ -3686,6 +3755,16 @@ export class LexerEx {
             this.startFoldingBlock_(this.SEC_TYPE.GBL, token.start, word);
           }
           const validName = this._cleanKeyword(word);
+          if (validName === "%DO") {
+            if (this.currSection?.type === this.SEC_TYPE.GBL) {
+              this.endFoldingBlock_(this.SEC_TYPE.GBL, token.start);
+            }
+            this.startFoldingBlock_(
+              this.SEC_TYPE.MACRO_DO,
+              token.start,
+              "%DO",
+            );
+          }
           const state: any = {
             parse: this.readGblStmt_,
             state: this.PARSING_STATE.IN_GBL,

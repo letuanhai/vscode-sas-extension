@@ -46,10 +46,11 @@ function getType(type: string) {
   return legend.tokenTypes.indexOf(type);
 }
 
-// DATA, PROC, MACRO, GBL, CUSTOM, DO, SELECT
+// DATA, PROC, MACRO, GBL, CUSTOM, DO, SELECT, MACRO_DO
 const SymbolKinds = [
   SymbolKind.Struct,
   SymbolKind.Function,
+  SymbolKind.Module,
   SymbolKind.Module,
   SymbolKind.Module,
   SymbolKind.Module,
