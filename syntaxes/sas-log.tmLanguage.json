@@ -9,6 +9,7 @@
     { "include": "#warning-line" },
     { "include": "#note-line" },
     { "include": "#output-dataset-line" },
+    { "include": "#log-summary-line" },
     { "include": "#source-line" }
   ],
   "repository": {
@@ -24,6 +25,14 @@
       "match": "^\\s*(?i)NOTE.*:.*$",
       "name": "constant.language.sas-log"
     },
+    "log-summary-line": {
+      "match": "^SAS Log Summary: (\\d+) error\\(s\\), (\\d+) warning\\(s\\)$",
+      "captures": {
+        "0": { "name": "constant.language.sas-log" },
+        "1": { "name": "invalid.sas-log" },
+        "2": { "name": "markup.deleted.sas-log" }
+      }
+    },
     "output-dataset-line": {
       "match": "^Output dataset: .*$",
       "name": "constant.numeric.sas-log"
@@ -35,7 +44,6 @@
       }
     },
     "include-file": {
-      "match": "^\\s*(\\d+)\\s*(?<=[\\d ]{9})[ +]",
       "match": "^\\s*NOTE: %INCLUDE \\(level (\\d+)\\).*$",
       "captures": {
         "0": { "name": "constant.language.sas-log" },

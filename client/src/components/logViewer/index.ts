@@ -16,12 +16,14 @@ import {
   showLogOnExecutionFinish,
   showLogOnExecutionStart,
 } from "../utils/settings";
+import { LogCounter } from "./logCounter";
 
 const { setProducedExecutionLogOutput } = useLogStore.getState();
 
 let outputChannel: OutputChannel;
 let data: string[] = [];
 let fileName = "";
+const logCounter = new LogCounter();
 
 export const legend = {
   tokenTypes: ["error", "warning", "note"],
@@ -80,6 +82,7 @@ const appendLogLines: OnLogFn = (logs) => {
     outputChannel = window.createOutputChannel(name, "sas-log");
   }
   for (const line of logs) {
+    logCounter.count(line);
     line.line
       .trimEnd()
       .split("\n")
@@ -109,10 +112,22 @@ useRunStore.subscribe(
       prevIsExecuting &&
       useLogStore.getState().producedExecutionOutput
     ) {
+      const { errorCount, warningCount } = logCounter.getCounts();
+      outputChannel?.appendLine("");
+      outputChannel?.appendLine(
+        l10n.t(
+          "SAS Log Summary: {errorCount} error(s), {warningCount} warning(s)",
+          {
+            errorCount: errorCount.toString(),
+            warningCount: warningCount.toString(),
+          },
+        ),
+      );
       if (showLogOnExecutionFinish()) {
         outputChannel?.show(true);
       }
     } else if (isExecuting && !prevIsExecuting) {
+      logCounter.reset();
       setProducedExecutionLogOutput(false);
 
       if (
