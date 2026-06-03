@@ -260,6 +260,9 @@ async function createAndActivate(
 ): Promise<void> {
   const sessionId = await createSessionOnServer(endpoint, cookieString);
   await activateSession(endpoint, sessionId, cookieString);
+  window.showInformationMessage(
+    l10n.t("New SAS Studio session created: {0}", sessionId),
+  );
 }
 
 // ---------------------------------------------------------------------------
