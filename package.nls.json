@@ -85,6 +85,7 @@
   "configuration.SAS.results.html.style": "Specifies the style for ODS HTML5 results.",
   "configuration.SAS.results.html.style.(auto)": "Let the extension pick a style that most closely matches the color theme.",
   "configuration.SAS.results.html.style.(server default)": "Default to the style configured on the SAS server.",
+  "configuration.SAS.results.autofocusResults": "Auto-focus the results panel when reusing an existing panel after execution",
   "configuration.SAS.results.sideBySide": "Display results to the side of the code",
   "configuration.SAS.results.singlePanel": "Reuse single panel to display results",
   "configuration.SAS.userProvidedCertificates": "Provide trusted CA certificate files",

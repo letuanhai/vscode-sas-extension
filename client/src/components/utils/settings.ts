@@ -18,6 +18,10 @@ export function isSinglePanelEnabled(): string {
   return workspace.getConfiguration("SAS").get("results.singlePanel");
 }
 
+export function isAutofocusResultsEnabled(): boolean {
+  return !!workspace.getConfiguration("SAS").get("results.autofocusResults");
+}
+
 export function showLogOnExecutionStart(): boolean {
   return workspace.getConfiguration("SAS").get("log.showOnExecutionStart");
 }

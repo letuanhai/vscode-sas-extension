@@ -525,14 +525,20 @@
             "default": false,
             "description": "%configuration.SAS.results.singlePanel%"
           },
-          "SAS.results.html.enabled": {
+          "SAS.results.autofocusResults": {
             "order": 4,
+            "type": "boolean",
+            "default": true,
+            "description": "%configuration.SAS.results.autofocusResults%"
+          },
+          "SAS.results.html.enabled": {
+            "order": 5,
             "type": "boolean",
             "default": true,
             "description": "%configuration.SAS.results.html.enabled%"
           },
           "SAS.results.html.style": {
-            "order": 5,
+            "order": 6,
             "type": "string",
             "default": "(auto)",
             "enum": [

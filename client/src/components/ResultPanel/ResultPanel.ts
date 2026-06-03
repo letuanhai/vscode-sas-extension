@@ -5,7 +5,11 @@ import { Uri, ViewColumn, WebviewPanel, l10n, window } from "vscode";
 import { v4 } from "uuid";
 
 import { getContextValue, setContextValue } from "../ExtensionContext";
-import { isSideResultEnabled, isSinglePanelEnabled } from "../utils/settings";
+import {
+  isAutofocusResultsEnabled,
+  isSideResultEnabled,
+  isSinglePanelEnabled,
+} from "../utils/settings";
 
 const SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
 export const SAS_RESULT_PANEL = "SASResultPanel";
@@ -24,6 +28,7 @@ let resultPanel: IdentifiableWebviewPanel | undefined;
 export const showResult = (html: string, uri?: Uri, title?: string) => {
   const sideResult = isSideResultEnabled();
   const singlePanel = isSinglePanelEnabled();
+  const focusResults = isAutofocusResultsEnabled();
   let panelId: string;
 
   if (!title) {
@@ -49,17 +54,19 @@ export const showResult = (html: string, uri?: Uri, title?: string) => {
   } else {
     const editor = uri
       ? window.visibleTextEditors.find(
-          (editor) => editor.document.uri.toString() === uri.toString(),
-        )
+        (editor) => editor.document.uri.toString() === uri.toString(),
+      )
       : window.activeTextEditor;
     if (resultPanel.webviewPanel.title !== title) {
       resultPanel.webviewPanel.title = title;
     }
     panelId = resultPanel.panelId;
-    resultPanel.webviewPanel.reveal(
-      sideResult ? ViewColumn.Beside : editor?.viewColumn,
-      true,
-    );
+    if (focusResults) {
+      resultPanel.webviewPanel.reveal(
+        sideResult ? ViewColumn.Beside : editor?.viewColumn,
+        true,
+      );
+    }
   }
 
   const panelHtml = wrapPanelHtml(html, panelId);
