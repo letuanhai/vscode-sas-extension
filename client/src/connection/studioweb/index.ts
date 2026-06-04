@@ -310,6 +310,27 @@ export class StudioWebSession extends Session {
     // asyncSubmissions returns a bare UUID string, not an object
     this._submissionId = submission;
 
+    // Fetch submission detail to get links, emit them at the top of the log
+    try {
+      const { data: submissionDetail } = await axiosInstance.get(
+        `/submissions/${this._submissionId}`,
+        { _silent: true },
+      );
+      const links: Array<{ rel: string; href: string }> =
+        submissionDetail?.links ?? [];
+      if (links.length > 0) {
+        const linkLines = links.map(
+          ({ rel, href }): { type: LogLineTypeEnum; line: string } => ({
+            type: "normal",
+            line: `[submission] ${rel}: ${href}`,
+          }),
+        );
+        this._onExecutionLogFn?.(linkLines);
+      }
+    } catch {
+      // Non-fatal — continue to polling even if detail fetch fails
+    }
+
     // Poll for results
     let runResult: RunResult = {};
     let done = false;
