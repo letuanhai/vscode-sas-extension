@@ -1794,7 +1794,6 @@
     "url": "https://github.com/letuanhai/vscode-sas-extension"
   },
   "scripts": {
-    "vscode:prepublish": "npm run lint && npm run compile",
     "lint": "node node_modules/eslint/bin/eslint.js \"./client/src/**/*.ts\" \"./client/src/**/*.tsx\" \"./server/src/**/*.ts\"",
     "compile": "node ./tools/build.mjs",
     "watch": "node ./tools/build.mjs dev",
@@ -1811,7 +1810,10 @@
     "pseudoLocalize": "npx @vscode/l10n-dev export -o ./l10n ./client/src && npx @vscode/l10n-dev generate-pseudo -o ./l10n/ ./l10n/bundle.l10n.json ./package.nls.json",
     "postinstall": "cd client && npm install && cd ../server && npm install && cd ..",
     "copyright:check": "node ./tools/check-copyright.mjs",
-    "locale": "npx @vscode/l10n-dev export -o ./l10n ./client/src && node ./tools/locale.mjs"
+    "locale": "npx @vscode/l10n-dev export -o ./l10n ./client/src && node ./tools/locale.mjs",
+    "prepublish": "npm run lint && npm run compile",
+    "publish": "vsce publish",
+    "login": "vsce login lth"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.3",
@@ -1825,6 +1827,7 @@
     "@vscode/l10n-dev": "^0.0.35",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.2",
     "buffer": "6.0.3",
     "chai": "^4.4.1",
     "concurrently": "^9.2.1",
