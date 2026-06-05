@@ -49,5 +49,4 @@ run-harness-test.js
 *.node
 *.swp
 *.backup
-CHANGELOG-SASSTUDIO-WEB.md
 .vscode*

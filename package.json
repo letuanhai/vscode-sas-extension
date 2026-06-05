@@ -1,23 +1,18 @@
 {
-  "name": "sas-lsp",
-  "displayName": "SAS",
-  "description": "Official SAS Language Extension for VS Code",
-  "version": "1.19.1-sasstudio-web.2",
+  "name": "ssw-editor",
+  "displayName": "SSW Editor",
+  "description": "A fork of SAS language extension",
+  "version": "1.0.1",
   "categories": [
-    "Programming Languages",
-    "Data Science",
-    "Machine Learning",
-    "Notebooks"
+    "Other"
   ],
-  "publisher": "SAS",
+  "publisher": "lth",
   "license": "Apache-2.0",
-  "icon": "icons/sas.png",
   "engines": {
     "vscode": "^1.89.0"
   },
   "activationEvents": [
     "onWebviewPanel:SASResultPanel",
-    "onLanguage:sas",
     "onNotebook:sas-notebook"
   ],
   "main": "./client/dist/node/extension",
@@ -1795,17 +1790,11 @@
     ]
   },
   "repository": {
-    "type": "git",
-    "url": "https://github.com/sassoftware/vscode-sas-extension"
+    "type": "github",
+    "url": "https://github.com/letuanhai/vscode-sas-extension"
   },
-  "bugs": {
-    "url": "https://github.com/sassoftware/vscode-sas-extension/issues"
-  },
-  "homepage": "https://www.sas.com",
-  "qna": "https://marketplace.visualstudio.com/items?itemName=SAS.sas-lsp&ssr=false#qna",
   "scripts": {
     "vscode:prepublish": "npm run lint && npm run compile",
-    "package:fork": "node ./tools/package-with-changelog.mjs",
     "lint": "node node_modules/eslint/bin/eslint.js \"./client/src/**/*.ts\" \"./client/src/**/*.tsx\" \"./server/src/**/*.ts\"",
     "compile": "node ./tools/build.mjs",
     "watch": "node ./tools/build.mjs dev",

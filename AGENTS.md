@@ -116,53 +116,6 @@ xvfb-run npx vscode-test --label integration
 xvfb-run npx vscode-test --label studioweb-live-ui
 ```
 
-#### Reference example
-
-See `client/test/components/ContentNavigator/QuickFileBrowser.test.ts` for a complete example showing: stub adapter creation, QuickPick instance capture via `window.createQuickPick` spy, async item loading, `setContext` verification, and proper cleanup.
-
-### 3. StudioWeb Live UI Tests (`studioweb-live-ui`) — WHEN YOU NEED LIVE SERVER + VSCODE UI
-
-**When to use:** Testing VS Code UI components (tree views, QuickPick, commands, sidebar panels) against the real dev SAS Studio server.
-
-- Files go in `client/test/live-ui/`
-- Runs via `@vscode/test-cli` with the `studioweb-live-ui` label
-- Requires `SAS_UI_LIVE=1` env var (tests skip otherwise)
-- Optionally set `SAS_UI_LIVE_ENDPOINT` (defaults to `http://192.168.0.141/SASStudio/38`)
-- Uses shared helpers in `client/test/live-ui/helpers.ts` for profile bootstrap and cleanup
-- **One session per suite** — the dev server has limited memory
-
-```bash
-# Compile first, then run live UI tests
-npm run pretest
-SAS_UI_LIVE=1 xvfb-run npx vscode-test --label studioweb-live-ui
-```
-
-**What to test here:** Tree view visibility, QuickPick behavior with live data, command registration, `setContext` wiring, sidebar panel focus/reveal.
-
-**Key helpers in `helpers.ts`:**
-
-- `describeIfLive(title, fn)` — conditional `describe` gated on `SAS_UI_LIVE=1`
-- `bootstrapStudioWebProfile()` — writes a StudioWeb profile to VS Code settings
-- `cleanupProfile()` — closes session and resets settings
-- `recordSetContext()` — intercepts `setContext` calls for assertion
-- `waitFor(predicate, timeout)` — polling helper for async UI
-
-### Decision guide for agents
-
-| Need to test…                       | Use                 |
-| ----------------------------------- | ------------------- |
-| Pure function / utility             | `test-harness`      |
-| Store actions (zustand)             | `test-harness`      |
-| HTTP API logic (with mocked axios)  | `test-harness`      |
-| Data transformation / parsing       | `test-harness`      |
-| VS Code command execution           | `test-client`       |
-| LSP features (completion, hover)    | `test-client`       |
-| Extension activation / registration | `test-client`       |
-| Anything importing from `"vscode"`  | `test-client`       |
-| Tree views with live server data    | `studioweb-live-ui` |
-| QuickPick with live server data     | `studioweb-live-ui` |
-| setContext wiring with live profile | `studioweb-live-ui` |
-
 ## Architecture
 
 The repo is a VS Code extension split into two independent TypeScript packages:
@@ -227,125 +180,44 @@ The `SAS.studioweb.newSession` command (registered in `node/extension.ts`) close
 | `SAS.serverEnabled`    | All types except SSH               |
 | `SAS.contentEnabled`   | REST (Viya) and StudioWeb          |
 
-## SAS Studio Web Testing Considerations
-
-**⚠️ Important:** The dev SAS Studio server at `192.168.0.141` has limited memory. When writing tests:
-
-- **Reuse sessions when possible** - Don't create a new session for every test if tests can share one
-- **Clean up sessions** - Use `DELETE /sessions/{id}` in `after`/`afterEach` hooks to explicitly delete sessions and free up server resources
-- **Avoid heavy parallelism** - Creating many sessions concurrently under active load may trigger HTTP 503; reuse sessions rather than creating one per test
-
-**Session creation endpoint:**
-
-```bash
-POST http://192.168.0.141/SASStudio/38/sasexec/sessions
-# Dev instance: no authorization cookie required — just POST with empty body
-# Production: must include auth token cookie from SAS Studio login flow in ALL requests
-# Response sets: Set-Cookie: JSESSIONID=<token>
-# Returns: { id, baseURL, version, sasSysUserId, userDirectory, ... }
-```
-
-**Session status check:**
-
-```bash
-GET http://192.168.0.141/SASStudio/38/sasexec/sessions/{sessionId}/ping
-# Returns: { lastAccessedTime, running, queued, lastAccessedSpanInMilliseconds }
-# HTTP 404 = session expired/invalid
-```
-
-**Session cleanup/delete:**
-
-```bash
-DELETE http://192.168.0.141/SASStudio/38/sasexec/sessions/{sessionId}
-# Returns: HTTP 200 on success
-# Use this in after/afterEach hooks to clean up test sessions
-```
-
-## SAS Studio Web API Reference
-
-The following documentation files describe the internal SAS Studio Web REST API used by the `studioweb` connection type:
-
-| File                              | Description                                                                                                                       |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `SASStudio-API-Documentation.md`  | Complete API reference: code execution, file operations, library navigation, SQL queries, and VS Code extension integration guide |
-| `SASStudio-FileOperations-API.md` | Detailed file/folder operations: path encoding (`~ps~`, `~dot~`), tree loading, CRUD operations, BIP tree, FTP, and CSRF handling |
-| `SASStudio-API.ipynb`             | Interactive Jupyter notebook with working Python examples for all API endpoints                                                   |
-
-**Key API patterns:**
-
-- Base URL: `{host}/sasexec` or `{host}/SASStudio/{version}/sasexec`
-- Auth: `RemoteSession-Id` header required for all requests. Cookie requirements differ: **production** requires an authorization token cookie (from the SAS Studio login flow) on **every** request including session creation; **dev instance** requires no authorization cookie.
-- File paths: Use `~~ds~~` prefix (e.g., `/workspace/~~ds~~/path/to/file`)
-- Libraries: `/libdata/{sessionId}/libraries` endpoint
-- Code execution: `POST /sessions/{id}/asyncSubmissions` → poll `/messages/longpoll`
-
-### API Exploration via Playwright
-
-Agents can use the `playwright-cli` skill to explore SAS Studio Web API behavior interactively:
-
-```bash
-# Load the skill first
-/skill playwright-cli
-
-# Then navigate to the SAS Studio instance
-/playwright-cli open http://192.168.0.141/SASStudio/38
-```
-
-This opens a browser to the local SAS Studio instance where you can observe actual API calls, inspect network traffic, and verify endpoint behavior while working on `studioweb` connection features.
-
-## SAS Server SSH Access
-
-The SAS server is also accessible via SSH:
-
-- **Host:** `192.168.0.141`
-- **Username:** `sasdemo`
-- **Command:** `ssh sasdemo@192.168.0.141`
-
-SSH access is useful for inspecting server-side logs, running SAS commands directly, or debugging connection issues outside of the extension.
-
 ## Fork Maintenance
 
-This repo is a personal fork (`sasstudio-web`) of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension). Naming convention:
+This repo is a personal fork (`sasstudio-web`) of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension).
 
-| Item | Value |
-|---|---|
-| Branch | `sasstudio-web` |
-| Version | `{upstream}-sasstudio-web.{patch}` (e.g. `1.19.0-sasstudio-web.1`) |
-| Fork changelog | `CHANGELOG-SASSTUDIO-WEB.md` |
-| Upstream changelog | `CHANGELOG.md` (do not add fork entries here) |
+### Version policy
+
+Increment `patch` for fixes, `minor` for new features. The upstream version is no longer reflected in this version number.
+
+### Incorporating upstream changes (cherry-pick workflow)
+
+This fork does **not** rebase onto upstream. Upstream changes are reviewed manually and cherry-picked selectively.
+
+```bash
+# See upstream commits not yet in this branch
+git log sasstudio-web..main --oneline --format="%h %as %s"
+
+# Cherry-pick a specific commit (resolve conflicts as needed)
+git cherry-pick <sha>
+
+# Cherry-pick a range
+git cherry-pick <older-sha>^..<newer-sha>
+```
+
+After cherry picking a batch of upstream commits:
+
+1. Note the commit hash of picked and last reviewed upstream commits in the commit message.
+2. If changes were incorporated, add an entry to `CHANGELOG.md` under Upstream history.
 
 ### Packaging
 
-When creating a distributable `.vsix` file, use the custom package script:
-
 ```bash
-npm run package:fork              # Creates .vsix with combined changelog
-npm run package:fork -- --out ./dist/my-package.vsix  # With custom output path
+npx @vscode/vsce package          # produces .vsix in current directory
+npx @vscode/vsce publish --pre-release --pat <TOKEN>  # publish to marketplace
 ```
 
-This script:
-1. Temporarily combines `CHANGELOG-SASSTUDIO-WEB.md` + `CHANGELOG.md`
-2. Runs `vsce package` with the combined changelog
-3. Restores the original `CHANGELOG.md` (keeping it clean for upstream sync)
+### Changelog
 
-**Important:** Never edit `CHANGELOG.md` directly — add fork-specific changes to `CHANGELOG-SASSTUDIO-WEB.md` instead.
-
-### Syncing with upstream
-
-Use the single rebase script — it handles backup, fetch, rebase, and version bump:
-
-```bash
-# First run: creates backup tag, fetches upstream, starts rebase
-./scripts/rebase-upstream.sh
-
-# If conflicts occur: resolve them, then re-run the same script
-./scripts/rebase-upstream.sh
-
-# Push after successful rebase
-git push --force-with-lease origin sasstudio-web
-```
-
-The script detects in-progress rebases automatically. Backup tags are created as `pre-rebase/{timestamp}` — restore with `git reset --hard pre-rebase/...` if needed.
+All changes go directly into `CHANGELOG.md`. Fork-specific entries are at the top; the upstream history is preserved below the `## Upstream history` separator. Do not create a separate fork changelog file.
 
 ## Do Not
 
