@@ -6,10 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 This is a personal fork of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension). Fork-specific entries are listed first; upstream history follows.
 
-## [1.0.1] - 2026-04-24
+## [1.1.0] - 2026-06-06
 
 ### Added
 
+- Add error/warning summary at the end of the SAS execution log — shows total error and warning counts after each run
+- Add `autofocusResults` configuration option to control whether the result panel is focused automatically after execution
+- Show notification with the new session ID after a new SAS Studio Web session is created
+- Fetch submission detail after submit and show links (e.g., output datasets, result URLs) in the log output (SAS Studio Web)
 - Add code folding for data step `do`/`end` blocks (server-side LSP folding)
 - Add code folding for data step `select`/`end` blocks
 - Add code folding for macro `%do`/`%end` blocks in all scopes: global, inside `%macro`, inside DATA, inside PROC, and mid-statement (`%if ... %then %do`)
