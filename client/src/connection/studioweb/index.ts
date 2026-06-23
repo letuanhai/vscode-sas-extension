@@ -411,13 +411,21 @@ export class StudioWebSession extends Session {
           }
 
           done = true;
-          break;
         } else if (messageType === "SubmitException") {
           this._cancelled = true;
           window.showErrorMessage(`SAS Submit Exception: ${payload?.exceptionMessage}`);
+
         } else if (messageType === "ServerMessage") {
           if (payload?.messageLevel === "Error") {
             window.showWarningMessage(`${payload?.messageType}: ${payload?.messageText}`);
+          }
+        }
+
+        // Print final submission status
+        if (messageType === "SubmitComplete" || messageType === "SubmitException") {
+          if (payload?.status) {
+            const statusLine: { type: LogLineTypeEnum; line: string } = { type: "hilighted", line: `SAS Submission Status: ${payload.status}` };
+            this._onExecutionLogFn?.([statusLine]);
           }
         }
       }
