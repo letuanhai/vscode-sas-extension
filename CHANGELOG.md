@@ -6,7 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 This is a personal fork of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension). Fork-specific entries are listed first; upstream history follows.
 
-## [1.1.0] - 2026-06-06
+## [1.1.0] - 2026-06-23
+
+### Added
+
+- Show elapsed time in the progress notification while SAS code is running
+- Show progress notification while establishing a new SAS Studio Web session
+
+### Fixed
+
+- Longpoll: disable request timeout (server hold time can exceed the 30s axios default); treat empty array response as "still running" rather than end-of-execution
+- Graceful cancel: send `DELETE` to the server and keep polling for the abort notification; skip fetching results after cancel to avoid 404 on the result endpoint; handle `SubmitException` by stopping the poll and showing an error; surface `ServerMessage` errors as a warning notification
+- Print final submission status message in the log after execution completes (SAS Studio Web)
+
+## [1.0.1] - 2026-06-06
 
 ### Added
 
