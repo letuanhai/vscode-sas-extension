@@ -347,13 +347,8 @@ export class StudioWebSession extends Session {
     while (!done && !this._cancelled) {
       const { data: messages } = await axiosInstance.get(
         `/sessions/${sessionId}/messages/longpoll`,
-        { _silent: true }, // errors bubble to run.ts onRunError
+        { _silent: true, timeout: 0 }, // errors bubble to run.ts onRunError
       );
-
-      // Empty array means execution ended
-      if (!messages || messages.length === 0) {
-        break;
-      }
 
       for (const message of messages) {
         const { messageType, payload } = message;
