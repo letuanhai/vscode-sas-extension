@@ -1812,6 +1812,7 @@
     "copyright:check": "node ./tools/check-copyright.mjs",
     "locale": "npx @vscode/l10n-dev export -o ./l10n ./client/src && node ./tools/locale.mjs",
     "prepublish": "npm run lint && npm run compile",
+    "package": "npm run prepublish && vsce package",
     "publish": "vsce publish",
     "login": "vsce login lth"
   },
