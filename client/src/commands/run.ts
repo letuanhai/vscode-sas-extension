@@ -123,10 +123,18 @@ async function runCode(selected?: boolean, uri?: Uri) {
   await window.withProgress(
     {
       location: ProgressLocation.Notification,
-      title: l10n.t("SAS code running..."),
+      title: l10n.t("SAS code running"),
       cancellable: typeof session.cancel === "function",
     },
-    (_progress, cancellationToken) => {
+    (progress, cancellationToken) => {
+      const startTime = Date.now();
+      const timer = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        progress.report({ message: `${minutes}:${String(seconds).padStart(2, "0")}` });
+      }, 1000);
+
       cancellationToken.onCancellationRequested(() => {
         session.cancel?.();
       });
@@ -134,7 +142,8 @@ async function runCode(selected?: boolean, uri?: Uri) {
         .run(codeDoc.getWrappedCode(), { baseDirectory: basePath })
         .then((results) => {
           showOutputDatasets(results.html5, results.dataSets ?? [], uri, l10n.t("Result - {fileName}", { fileName: basename(fullPath) }));
-        });
+        })
+        .finally(() => clearInterval(timer));
     },
   );
 }
