@@ -265,10 +265,10 @@ async function createAndActivate(
       cancellable: false,
     },
     async () => {
-  const sessionId = await createSessionOnServer(endpoint, cookieString);
-  await activateSession(endpoint, sessionId, cookieString);
-  window.showInformationMessage(
-    l10n.t("New SAS Studio session created: {0}", sessionId),
+      const sessionId = await createSessionOnServer(endpoint, cookieString);
+      await activateSession(endpoint, sessionId, cookieString);
+      window.showInformationMessage(
+        l10n.t("New SAS Studio session created: {0}", sessionId),
       );
     },
   );
@@ -281,6 +281,7 @@ async function createAndActivate(
 export class StudioWebSession extends Session {
   private _config: Config;
   private _cancelled = false;
+  private _cancelRequested = false;
   private _submissionId: string | undefined;
 
   public set config(value: Config) {
@@ -304,6 +305,7 @@ export class StudioWebSession extends Session {
     }
 
     this._cancelled = false;
+    this._cancelRequested = false;
     this._submissionId = undefined;
     const { sessionId } = credentials;
 
@@ -375,7 +377,7 @@ export class StudioWebSession extends Session {
             (link: { rel: string; uri: string }) => link.rel === "results",
           );
 
-          if (resultsLink?.uri) {
+          if (resultsLink?.uri && !this._cancelRequested) {
             try {
               const resultsUrl = `${credentials.endpoint}${resultsLink.uri}`;
 
@@ -410,6 +412,13 @@ export class StudioWebSession extends Session {
 
           done = true;
           break;
+        } else if (messageType === "SubmitException") {
+          this._cancelled = true;
+          window.showErrorMessage(`SAS Submit Exception: ${payload?.exceptionMessage}`);
+        } else if (messageType === "ServerMessage") {
+          if (payload?.messageLevel === "Error") {
+            window.showWarningMessage(`${payload?.messageType}: ${payload?.messageText}`);
+          }
         }
       }
     }
@@ -430,20 +439,27 @@ export class StudioWebSession extends Session {
   }
 
   public async cancel(): Promise<void> {
-    this._cancelled = true;
+    this._cancelRequested = true;
 
     const axiosInstance = getAxios();
     const credentials = getCredentials();
 
-    if (axiosInstance && credentials && this._submissionId) {
-      try {
-        await axiosInstance.delete(
-          `/sessions/${credentials.sessionId}/submissions`,
-          { params: { id: this._submissionId } },
-        );
-      } catch {
-        // Ignore errors on cancel
-      }
+    if (!axiosInstance || !credentials || !this._submissionId) {
+      this._cancelled = true;
+      return;
+    }
+
+    try {
+      await axiosInstance.delete(
+        `/sessions/${credentials.sessionId}/submissions`,
+        { params: { id: this._submissionId } },
+      );
+      // Server gracefully aborts and notifies via long poll — keep polling
+    } catch {
+      this._cancelled = true;
+      window.showErrorMessage(
+        l10n.t("Cancellation request failed. The submission may still be running on the server."),
+      );
     }
   }
 
