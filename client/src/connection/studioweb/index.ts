@@ -1,7 +1,7 @@
 // Copyright © 2024, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 import axios, { AxiosError } from "axios";
-import { l10n, window } from "vscode";
+import { ProgressLocation, l10n, window } from "vscode";
 
 import { RunResult } from "..";
 import { updateStatusBarItem } from "../../components/StatusBarItem";
@@ -258,10 +258,19 @@ async function createAndActivate(
   endpoint: string,
   cookieString?: string,
 ): Promise<void> {
+  await window.withProgress(
+    {
+      location: ProgressLocation.Notification,
+      title: l10n.t("Creating SAS Studio session…"),
+      cancellable: false,
+    },
+    async () => {
   const sessionId = await createSessionOnServer(endpoint, cookieString);
   await activateSession(endpoint, sessionId, cookieString);
   window.showInformationMessage(
     l10n.t("New SAS Studio session created: {0}", sessionId),
+      );
+    },
   );
 }
 
