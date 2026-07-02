@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 This is a personal fork of [sassoftware/vscode-sas-extension](https://github.com/sassoftware/vscode-sas-extension). Fork-specific entries are listed first; upstream history follows.
 
+## [1.2.0] - 2026-07-02
+
+### Added
+
+- Add `results.panelMode` configuration option to control how result panels are grouped (`per-execution`, `single`, or `per-script`)
+- DataViewer: default table font size to the editor font size, with font size controls to adjust it (cell size scales with the font size)
+- DataViewer: mouse drag selection and click-to-deselect for cells
+
+### Fixed
+
+- DataViewer: skip key shortcuts when a form control (e.g. a search or filter input) has focus
+
 ## [1.1.0] - 2026-06-23
 
 ### Added
