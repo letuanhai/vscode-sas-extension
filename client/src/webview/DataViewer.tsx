@@ -66,16 +66,19 @@ const DataViewer = () => {
 
   const handleKeydown = useCallback(
     (event: KeyboardEvent) => {
+      const tag = document.activeElement?.tagName ?? "";
+      const isFormControl = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+
       if (event.key === "Escape") {
         if (columnMenu) {
           dismissMenu();
-        } else if (selection.hasSelection()) {
+        } else if (!isFormControl && selection.hasSelection()) {
           selection.clearSelection();
           gridRef.current?.api.refreshCells({ force: true });
         }
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-        if (selection.hasSelection() && gridRef.current?.api) {
+        if (!isFormControl && selection.hasSelection() && gridRef.current?.api) {
           event.preventDefault();
           const csv = getSelectedDataAsCSV(
             selection.selection,
@@ -86,7 +89,7 @@ const DataViewer = () => {
         }
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
-        if (gridRef.current?.api) {
+        if (!isFormControl && gridRef.current?.api) {
           event.preventDefault();
           event.stopPropagation();
           const allDataCols = getAllDataColumns();
