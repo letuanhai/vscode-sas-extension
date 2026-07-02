@@ -69,7 +69,7 @@ describe("showOutputDatasets (integration)", function () {
     sandbox = sinon.createSandbox();
 
     // Stub settings so ResultPanel doesn't try to read real VS Code config
-    sandbox.stub(settings, "isSinglePanelEnabled").returns(undefined as any);
+    sandbox.stub(settings, "getPanelMode").returns("per-execution");
     sandbox.stub(settings, "isSideResultEnabled").returns(undefined as any);
 
     // Stub setContextValue to avoid needing a real extension context

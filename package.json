@@ -514,11 +514,17 @@
             "default": true,
             "description": "%configuration.SAS.results.sideBySide%"
           },
-          "SAS.results.singlePanel": {
+          "SAS.results.panelMode": {
             "order": 3,
-            "type": "boolean",
-            "default": false,
-            "description": "%configuration.SAS.results.singlePanel%"
+            "type": "string",
+            "default": "per-execution",
+            "enum": ["per-execution", "single", "per-script"],
+            "enumDescriptions": [
+              "%configuration.SAS.results.panelMode.per-execution%",
+              "%configuration.SAS.results.panelMode.single%",
+              "%configuration.SAS.results.panelMode.per-script%"
+            ],
+            "description": "%configuration.SAS.results.panelMode%"
           },
           "SAS.results.autofocusResults": {
             "order": 4,

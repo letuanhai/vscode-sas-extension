@@ -14,8 +14,8 @@ export function isSideResultEnabled(): string {
   return workspace.getConfiguration("SAS").get("results.sideBySide");
 }
 
-export function isSinglePanelEnabled(): string {
-  return workspace.getConfiguration("SAS").get("results.singlePanel");
+export function getPanelMode(): "per-execution" | "single" | "per-script" {
+  return workspace.getConfiguration("SAS").get("results.panelMode") ?? "per-execution";
 }
 
 export function isAutofocusResultsEnabled(): boolean {

@@ -6,9 +6,9 @@ import { v4 } from "uuid";
 
 import { getContextValue, setContextValue } from "../ExtensionContext";
 import {
+  getPanelMode,
   isAutofocusResultsEnabled,
   isSideResultEnabled,
-  isSinglePanelEnabled,
 } from "../utils/settings";
 
 const SCRIPT_REGEX = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
@@ -23,46 +23,60 @@ interface IdentifiableWebviewPanel {
   panelId: string;
 }
 
-let resultPanel: IdentifiableWebviewPanel | undefined;
+let resultPanel: IdentifiableWebviewPanel | undefined; // singlePanel mode
+const resultPanels = new Map<string, IdentifiableWebviewPanel>(); // perScript mode
+let lastShownPanel: IdentifiableWebviewPanel | undefined; // always = most recently shown
+
+const createPanel = (title: string, sideResult: unknown, panelId: string): IdentifiableWebviewPanel => {
+  const webviewPanel = window.createWebviewPanel(
+    SAS_RESULT_PANEL,
+    title,
+    { preserveFocus: true, viewColumn: sideResult ? ViewColumn.Beside : ViewColumn.Active },
+    { enableScripts: true, enableFindWidget: true },
+  );
+  webviewPanel.onDidDispose(() => disposePanel(panelId));
+  return { webviewPanel, panelId };
+};
 
 export const showResult = (html: string, uri?: Uri, title?: string) => {
   const sideResult = isSideResultEnabled();
-  const singlePanel = isSinglePanelEnabled();
+  const panelMode = getPanelMode();
   const focusResults = isAutofocusResultsEnabled();
-  let panelId: string;
 
   if (!title) {
     title = l10n.t("Result");
   }
 
-  if (!singlePanel || !resultPanel) {
+  let current: IdentifiableWebviewPanel | undefined;
+
+  if (panelMode === "single") {
+    current = resultPanel;
+  } else if (panelMode === "per-script") {
+    current = resultPanels.get(title);
+  }
+
+  let panelId: string;
+
+  if (!current) {
     panelId = `${v4()}`;
-    const webviewPanel = window.createWebviewPanel(
-      SAS_RESULT_PANEL, // Identifies the type of the webview. Used internally
-      title, // Title of the panel displayed to the user
-      {
-        preserveFocus: true,
-        viewColumn: sideResult ? ViewColumn.Beside : ViewColumn.Active,
-      }, // Editor column to show the new webview panel in.
-      {
-        enableScripts: true,
-        enableFindWidget: true,
-      }, // Webview options.
-    );
-    webviewPanel.onDidDispose(() => disposePanel(panelId));
-    resultPanel = { webviewPanel, panelId };
+    current = createPanel(title, sideResult, panelId);
+    if (panelMode === "single") {
+      resultPanel = current;
+    } else if (panelMode === "per-script") {
+      resultPanels.set(title, current);
+    }
   } else {
+    panelId = current.panelId;
     const editor = uri
       ? window.visibleTextEditors.find(
         (editor) => editor.document.uri.toString() === uri.toString(),
       )
       : window.activeTextEditor;
-    if (resultPanel.webviewPanel.title !== title) {
-      resultPanel.webviewPanel.title = title;
+    if (current.webviewPanel.title !== title) {
+      current.webviewPanel.title = title;
     }
-    panelId = resultPanel.panelId;
     if (focusResults) {
-      resultPanel.webviewPanel.reveal(
+      current.webviewPanel.reveal(
         sideResult ? ViewColumn.Beside : editor?.viewColumn,
         true,
       );
@@ -70,8 +84,9 @@ export const showResult = (html: string, uri?: Uri, title?: string) => {
   }
 
   const panelHtml = wrapPanelHtml(html, panelId);
-  resultPanel.webviewPanel.webview.html = panelHtml;
-  setContextValue(resultPanel.panelId, panelHtml);
+  current.webviewPanel.webview.html = panelHtml;
+  setContextValue(panelId, panelHtml);
+  lastShownPanel = current;
 };
 
 const wrapPanelHtml = (html: string, panelId: string): string => {
@@ -114,7 +129,10 @@ export const deserializeWebviewPanel = async (
   state: ResultPanelState,
 ): Promise<void> => {
   const panelHtml: string = await getContextValue(state.panelId);
-  resultPanel = { panelId: state.panelId, webviewPanel: webviewPanel };
+  const restored: IdentifiableWebviewPanel = { panelId: state.panelId, webviewPanel };
+  resultPanel = restored;
+  resultPanels.set(webviewPanel.title, restored);
+  lastShownPanel = restored;
   webviewPanel.webview.html = panelHtml;
   webviewPanel.onDidDispose(() => disposePanel(state.panelId));
 };
@@ -128,10 +146,21 @@ export const fetchHtmlFor = async (panelId: string) => {
 };
 
 export const getResultPanelWebview = (): import("vscode").Webview | undefined => {
-  return resultPanel?.webviewPanel.webview;
+  return lastShownPanel?.webviewPanel.webview;
 };
 
 const disposePanel = (id: string) => {
-  resultPanel = undefined;
+  if (resultPanel?.panelId === id) {
+    resultPanel = undefined;
+  }
+  for (const [key, panel] of resultPanels.entries()) {
+    if (panel.panelId === id) {
+      resultPanels.delete(key);
+      break;
+    }
+  }
+  if (lastShownPanel?.panelId === id) {
+    lastShownPanel = undefined;
+  }
   setContextValue(id, undefined);
 };
