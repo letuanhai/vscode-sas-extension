@@ -128,6 +128,13 @@ body,
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+.font-size-display {
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground);
+  min-width: 2ch;
+  text-align: center;
+}
+
 .toolbar-separator {
   display: inline-block;
   width: 1px;

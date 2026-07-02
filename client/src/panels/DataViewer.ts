@@ -19,6 +19,16 @@ export type ViewProperties = {
 
 export const DATA_VIEWER_VIEW_TYPE = "SAS.dataViewer";
 
+// VS Code's built-in default for editor.fontSize, used as a fallback in case the setting is unset.
+const DEFAULT_EDITOR_FONT_SIZE = 14;
+
+function getEditorFontSize(): number {
+  return (
+    workspace.getConfiguration("editor").get<number>("fontSize") ??
+    DEFAULT_EDITOR_FONT_SIZE
+  );
+}
+
 class DataViewer extends WebView {
   public viewProperties: ViewProperties = {};
   public onBecameActive: (() => void) | undefined;
@@ -125,6 +135,10 @@ class DataViewer extends WebView {
       "Expand table to full view": l10n.t("Expand table to full view"),
       "Restore View": l10n.t("Restore View"),
       "Restore full view with all controls": l10n.t("Restore full view with all controls"),
+      "Font size:": l10n.t("Font size:"),
+      "Decrease font size": l10n.t("Decrease font size"),
+      "Increase font size": l10n.t("Increase font size"),
+      "Reset font size": l10n.t("Reset font size"),
     };
   }
 
@@ -137,7 +151,8 @@ class DataViewer extends WebView {
   }
 
   public body() {
-    return `<div class="data-viewer-container" data-title="${this.title}"></div>`;
+    const fontSize = getEditorFontSize();
+    return `<div class="data-viewer-container" data-title="${this.title}" data-font-size="${fontSize}"></div>`;
   }
 
   protected onPanelAttached(): void {
@@ -147,6 +162,14 @@ class DataViewer extends WebView {
       this.getPanel().onDidChangeViewState(({ webviewPanel }) => {
         if (webviewPanel.active) {
           this.onBecameActive?.();
+        }
+      }),
+      workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration("editor.fontSize")) {
+          this.panel.webview.postMessage({
+            command: "config:editorFontSize",
+            data: { fontSize: getEditorFontSize() },
+          });
         }
       }),
     );

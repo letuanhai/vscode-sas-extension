@@ -1,6 +1,6 @@
 // Copyright © 2023, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { CellClickedEvent, CellMouseDownEvent, CellMouseOverEvent } from "ag-grid-community";
@@ -33,9 +33,12 @@ const copyHintKey = isMac ? "Cmd+C" : "Ctrl+C";
 
 const DataViewer = () => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const title = document
-    .querySelector("[data-title]")
-    .getAttribute("data-title");
+  const container = document.querySelector("[data-title]");
+  const title = container.getAttribute("data-title");
+  const initialFontSize =
+    parseInt(container.getAttribute("data-font-size") ?? "", 10) || 14;
+  const [defaultFontSize, setDefaultFontSize] = useState(initialFontSize);
+  const [fontSize, setFontSize] = useState(initialFontSize);
   const theme = useTheme();
   const {
     activeTab,
@@ -63,6 +66,18 @@ const DataViewer = () => {
   } = useDataViewer();
 
   const selection = useSelection(getAllDataColumns);
+
+  const gridWrapperRef = useRef<HTMLDivElement>(null);
+  // use grid-size=4px base (not alpine's 6px) for compact rows/padding; row=4×7=28px, header=4×8=32px at 13px font
+  const rowHeight = Math.round((28 * fontSize) / 13);
+  const headerHeight = Math.round((32 * fontSize) / 13);
+  useLayoutEffect(() => {
+    const el = gridWrapperRef.current;
+    if (!el) { return; }
+    el.style.setProperty("--ag-font-size", `${fontSize}px`);
+    el.style.setProperty("--ag-grid-size", `${((4 * fontSize) / 13).toFixed(2)}px`);
+    gridRef.current?.api.resetRowHeights();
+  }, [fontSize, gridRef]);
 
   const handleKeydown = useCallback(
     (event: KeyboardEvent) => {
@@ -134,6 +149,16 @@ const DataViewer = () => {
       window.removeEventListener("blur", dismissMenuWithoutFocus);
     };
   }, [handleKeydown, dismissMenuWithoutFocus]);
+
+  useEffect(() => {
+    const onConfigChange = (event: MessageEvent) => {
+      if (event.data?.command === "config:editorFontSize") {
+        setDefaultFontSize(event.data.data.fontSize);
+      }
+    };
+    window.addEventListener("message", onConfigChange);
+    return () => window.removeEventListener("message", onConfigChange);
+  }, []);
 
   // Drag-selection state (refs to avoid stale closures in event handlers)
   const isDraggingRef = useRef(false);
@@ -344,11 +369,36 @@ const DataViewer = () => {
           >
             {localize("Expand Table")}
           </button>
+          <span className="toolbar-separator" />
+          <span className="toolbar-label">{localize("Font size:")}</span>
+          <button
+            type="button"
+            onClick={() => setFontSize((s) => Math.max(8, s - 1))}
+            title={localize("Decrease font size")}
+          >
+            A−
+          </button>
+          <span className="font-size-display">{fontSize}</span>
+          <button
+            type="button"
+            onClick={() => setFontSize(defaultFontSize)}
+            title={localize("Reset font size")}
+          >
+            A
+          </button>
+          <button
+            type="button"
+            onClick={() => setFontSize((s) => Math.min(32, s + 1))}
+            title={localize("Increase font size")}
+          >
+            A+
+          </button>
         </div>
         {columnMenu && <ColumnMenu {...columnMenu} />}
         <div
           className={`ag-grid-wrapper ${theme}`}
           style={gridStyles}
+          ref={gridWrapperRef}
           onClick={() => columnMenu && dismissMenuWithoutFocus()}
         >
           {isExpanded && (
@@ -365,6 +415,8 @@ const DataViewer = () => {
           <AgGridReact
             ref={gridRef}
             cacheBlockSize={100}
+            rowHeight={rowHeight}
+            headerHeight={headerHeight}
             columnDefs={columns}
             context={{
               isCellSelected: selection.isCellSelected,
