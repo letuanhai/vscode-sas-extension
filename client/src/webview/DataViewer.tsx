@@ -1,9 +1,9 @@
 // Copyright © 2023, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import { CellClickedEvent } from "ag-grid-community";
+import { CellClickedEvent, CellMouseDownEvent, CellMouseOverEvent } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 import ".";
@@ -135,22 +135,82 @@ const DataViewer = () => {
     };
   }, [handleKeydown, dismissMenuWithoutFocus]);
 
-  const onCellClicked = useCallback(
-    (event: CellClickedEvent) => {
+  // Drag-selection state (refs to avoid stale closures in event handlers)
+  const isDraggingRef = useRef(false);
+  const hasDraggedRef = useRef(false);
+  const dragAnchorRef = useRef<{ row: number; col: string } | null>(null);
+  const wasSelectedAtMouseDownRef = useRef(false);
+
+  useEffect(() => {
+    const onMouseUp = () => { isDraggingRef.current = false; };
+    document.addEventListener("mouseup", onMouseUp);
+    return () => document.removeEventListener("mouseup", onMouseUp);
+  }, []);
+
+  const onCellMouseDown = useCallback(
+    (event: CellMouseDownEvent) => {
       const rowIndex = event.rowIndex;
       const colField = event.colDef.field;
-      if (rowIndex === null || rowIndex === undefined || !colField) {
+      if (rowIndex === null || rowIndex === undefined || !colField) { return; }
+      isDraggingRef.current = true;
+      hasDraggedRef.current = false;
+      dragAnchorRef.current = { row: rowIndex, col: colField };
+      wasSelectedAtMouseDownRef.current = selection.isCellSelected(rowIndex, colField);
+    },
+    [selection],
+  );
+
+  const onCellMouseOver = useCallback(
+    (event: CellMouseOverEvent) => {
+      if (!isDraggingRef.current || !dragAnchorRef.current) { return; }
+      const rowIndex = event.rowIndex;
+      const colField = event.colDef.field;
+      if (rowIndex === null || rowIndex === undefined || !colField || colField === "#") { return; }
+      const anchor = dragAnchorRef.current;
+      if (rowIndex === anchor.row && colField === anchor.col) { return; }
+      if (!hasDraggedRef.current) {
+        hasDraggedRef.current = true;
+        // Establish anchor before extending
+        if (anchor.col !== "#") {
+          selection.selectCell(anchor.row, anchor.col, false);
+        }
+      }
+      selection.selectCell(rowIndex, colField, true);
+      gridRef.current?.api.refreshCells({ force: true });
+    },
+    [selection, gridRef],
+  );
+
+  const onCellClicked = useCallback(
+    (event: CellClickedEvent) => {
+      if (hasDraggedRef.current) {
+        // Drag already updated selection; just end the drag
+        isDraggingRef.current = false;
         return;
       }
+      isDraggingRef.current = false;
+      const rowIndex = event.rowIndex;
+      const colField = event.colDef.field;
+      if (rowIndex === null || rowIndex === undefined || !colField) { return; }
       const shiftKey =
         event.event &&
         typeof event.event === "object" &&
         "shiftKey" in event.event &&
         Boolean(event.event.shiftKey);
-      if (colField === "#") {
-        selection.selectRow(rowIndex, shiftKey);
+      if (shiftKey) {
+        if (colField === "#") {
+          selection.selectRow(rowIndex, true);
+        } else {
+          selection.selectCell(rowIndex, colField, true);
+        }
+      } else if (!shiftKey && wasSelectedAtMouseDownRef.current) {
+        selection.clearSelection();
       } else {
-        selection.selectCell(rowIndex, colField, shiftKey);
+        if (colField === "#") {
+          selection.selectRow(rowIndex, false);
+        } else {
+          selection.selectCell(rowIndex, colField, false);
+        }
       }
       gridRef.current?.api.refreshCells({ force: true });
     },
@@ -335,6 +395,8 @@ const DataViewer = () => {
             infiniteInitialRowCount={100}
             maxBlocksInCache={10}
             onGridReady={onGridReady}
+            onCellMouseDown={onCellMouseDown}
+            onCellMouseOver={onCellMouseOver}
             onCellClicked={onCellClicked}
             onColumnMoved={onColumnMoved}
             rowModelType="infinite"
